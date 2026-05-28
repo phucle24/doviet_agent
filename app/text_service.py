@@ -18,7 +18,11 @@ def _client_and_types():
 
 
 def _used_answers_text(used_answers: set[str], limit: int = 80) -> str:
-    answers = sorted(answer for answer in used_answers if answer)
+    answers = sorted(
+        answer
+        for answer in used_answers
+        if answer and not (len(answer) == 64 and all(char in "0123456789abcdef" for char in answer))
+    )
     if not answers:
         return "(chưa có)"
     return "\n".join(f"- {answer}" for answer in answers[-limit:])
@@ -41,6 +45,8 @@ Bạn là biên tập viên cho fanpage "Đố Việt - Kho Đố Dân Gian".
 
 Hãy tạo MỘT nội dung mới cho series: {meta["label"]}.
 Không được trùng đáp án, ý tưởng chính, câu hỏi, hình ảnh gợi ý với danh sách đã dùng.
+Nếu series là ĐỐ TỤC NGỮ, ưu tiên thành ngữ/tục ngữ dạng "nhìn hình đoán câu".
+Không tạo dạng điền từ còn thiếu, điền câu tiếp theo, ca dao bị che chữ, hoặc câu hỏi chỉ cần nhìn chữ là ra đáp án.
 
 Đáp án đã dùng:
 {_used_answers_text(used_answers)}
@@ -58,11 +64,12 @@ Output JSON hợp lệ với đúng các key:
 Yêu cầu:
 1. Nội dung phải phù hợp văn hóa Việt, dễ hiểu, kéo comment.
 2. Không dùng đáp án mơ hồ hoặc gây tranh cãi.
-3. Không để lộ đáp án trong image_text.
+3. Không để lộ đáp án hoặc một phần quá rõ của đáp án trong image_text.
 4. image_brief viết bằng tiếng Anh, mô tả cảnh/hình ảnh để Gemini tạo poster 4:5.
 5. image_text viết tiếng Việt, rất ngắn, dùng như chữ trên ảnh.
 6. answer_note giải thích ngắn 1 câu.
 7. Với Đuổi Hình Bắt Chữ, image_text nên có dạng rebus bằng từ/icon/dấu cộng.
+8. Với ca dao/thành ngữ/tục ngữ dễ quen thuộc, clue phải là gợi ý rất chung, không trích nguyên văn câu trả lời.
 
 Chỉ trả về JSON, không giải thích thêm.
 """

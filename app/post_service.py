@@ -51,8 +51,8 @@ CAPTION_TEMPLATES = {
         [
             "{code}",
             "",
-            "Câu này nhìn quen quen mà nghĩ kỹ lại dễ lú lắm nha 😄",
-            "Gợi ý: {clue}",
+            "Câu thành ngữ/tục ngữ này nhìn quen quen mà nghĩ kỹ lại dễ lú lắm nha 😄",
+            "{clue_line}",
             "",
             "Bạn đoán ra chưa? Comment đáp án xuống dưới 👇",
             "",
@@ -62,8 +62,8 @@ CAPTION_TEMPLATES = {
         [
             "{code}",
             "",
-            "Một bức hình, một câu tục ngữ. Nghe đơn giản nhưng đừng chủ quan nha 😆",
-            "Gợi ý nhỏ: {clue}",
+            "Một bức hình, một câu thành ngữ/tục ngữ. Nghe đơn giản nhưng đừng chủ quan nha 😆",
+            "{clue_line}",
             "",
             "Ai nghĩ ra đáp án thì thả ngay dưới bình luận 👇",
             "",
@@ -76,7 +76,7 @@ CAPTION_TEMPLATES = {
             "{code}",
             "",
             "Câu này ai từng học chắc thấy quen lắm nè 😄",
-            "Gợi ý: {clue}",
+            "{clue_line}",
             "",
             "Bạn còn nhớ câu ca dao này không? Comment thử đáp án 👇",
             "",
@@ -87,7 +87,7 @@ CAPTION_TEMPLATES = {
             "{code}",
             "",
             "Một hình ảnh gợi nhớ cả tuổi thơ, nhưng nhớ đúng câu không mới khó 😆",
-            "Gợi ý nhỏ: {clue}",
+            "{clue_line}",
             "",
             "Đoán được thì comment liền nha 👇",
             "",
@@ -100,7 +100,7 @@ CAPTION_TEMPLATES = {
             "{code}",
             "",
             "Nhìn hình tưởng dễ, nhưng đừng để bị đánh lừa nha 😆",
-            "Gợi ý: {clue}",
+            "{clue_line}",
             "",
             "Ai đoán được trong 5 giây thì comment liền 👇",
             "",
@@ -111,7 +111,7 @@ CAPTION_TEMPLATES = {
             "{code}",
             "",
             "Câu này nhìn phát tưởng ra ngay, nhưng càng nhìn càng nghi nghi đó 😄",
-            "Gợi ý nhỏ: {clue}",
+            "{clue_line}",
             "",
             "Bạn ghép được cụm từ nào? Comment thử xem 👇",
             "",
@@ -124,7 +124,7 @@ CAPTION_TEMPLATES = {
             "{code}",
             "",
             "Câu này trẻ con đôi khi đoán nhanh hơn người lớn đó 😄",
-            "Gợi ý: {clue}",
+            "{clue_line}",
             "",
             "Đừng nghĩ quá xa, cứ comment đáp án bạn nghĩ tới trước tiên 👇",
             "",
@@ -135,7 +135,7 @@ CAPTION_TEMPLATES = {
             "{code}",
             "",
             "Nghe đơn giản nhưng dễ làm người lớn suy nghĩ quá mức lắm nha 😆",
-            "Gợi ý nhỏ: {clue}",
+            "{clue_line}",
             "",
             "Bạn chọn đáp án nào? Comment thử xem 👇",
             "",
@@ -155,6 +155,21 @@ ANSWER_OPENERS = [
 
 def template_index(topic: dict, total: int) -> int:
     return sum(ord(char) for char in topic["topic_key"]) % total
+
+
+def should_show_clue(topic: dict) -> bool:
+    if topic.get("show_clue") is False:
+        return False
+    difficulty = str(topic.get("difficulty", "")).strip().lower()
+    if difficulty in {"easy", "de"}:
+        return False
+    return True
+
+
+def clue_line(topic: dict) -> str:
+    if should_show_clue(topic):
+        return f"Gợi ý nhỏ: {topic['clue']}"
+    return "Không gợi ý đâu nha, nhìn hình đoán mới vui 😄"
 
 
 def append_caption_hashtags(caption: str) -> str:
@@ -180,7 +195,7 @@ def build_riddle_caption(topic: dict) -> str:
     lines = templates[template_index(topic, len(templates))]
     caption = "\n".join(lines).format(
         code=series_code(topic),
-        clue=topic["clue"],
+        clue_line=clue_line(topic),
     )
     return append_caption_hashtags(remove_ai_disclaimer(caption))
 

@@ -1,8 +1,16 @@
 from pathlib import Path
+import base64
+import json
 
 from PIL import Image, ImageDraw
 
-from app.config import GEMINI_API_KEY, GEMINI_IMAGE_MODEL, IMAGE_ASPECT_RATIO, IMAGE_FALLBACK_ON_ERROR
+from app.config import (
+    LOG_DIR,
+    GEMINI_API_KEY,
+    GEMINI_IMAGE_MODEL,
+    IMAGE_ASPECT_RATIO,
+    IMAGE_FALLBACK_ON_ERROR,
+)
 
 
 def _ensure_api_key():
@@ -45,6 +53,69 @@ def _describe_response(response) -> str:
     return "; ".join(pieces) or "empty response details"
 
 
+def _part_debug(part) -> dict:
+    inline_data = getattr(part, "inline_data", None)
+    text = getattr(part, "text", None)
+    file_data = getattr(part, "file_data", None)
+    data = getattr(inline_data, "data", None) if inline_data else None
+    return {
+        "type": type(part).__name__,
+        "has_text": bool(text),
+        "text_preview": text[:300] if text else None,
+        "has_inline_data": inline_data is not None,
+        "inline_mime_type": getattr(inline_data, "mime_type", None) if inline_data else None,
+        "inline_data_type": type(data).__name__ if data is not None else None,
+        "inline_data_len": len(data) if data is not None and hasattr(data, "__len__") else None,
+        "has_file_data": file_data is not None,
+        "file_uri": getattr(file_data, "file_uri", None) if file_data else None,
+    }
+
+
+def write_response_debug(response):
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    debug = {
+        "type": type(response).__name__,
+        "text_preview": (getattr(response, "text", None) or "")[:1000],
+        "prompt_feedback": repr(getattr(response, "prompt_feedback", None)),
+        "usage_metadata": repr(getattr(response, "usage_metadata", None)),
+        "top_level_parts": [],
+        "candidates": [],
+    }
+
+    for part in getattr(response, "parts", None) or []:
+        debug["top_level_parts"].append(_part_debug(part))
+
+    for candidate_index, candidate in enumerate(getattr(response, "candidates", None) or []):
+        content = getattr(candidate, "content", None)
+        candidate_debug = {
+            "index": candidate_index,
+            "finish_reason": repr(getattr(candidate, "finish_reason", None)),
+            "safety_ratings": repr(getattr(candidate, "safety_ratings", None)),
+            "parts": [],
+        }
+        for part in getattr(content, "parts", None) or []:
+            candidate_debug["parts"].append(_part_debug(part))
+        debug["candidates"].append(candidate_debug)
+
+    path = LOG_DIR / "last_gemini_image_response.json"
+    path.write_text(json.dumps(debug, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
+def _inline_data_to_bytes(inline_data) -> bytes | None:
+    data = getattr(inline_data, "data", None)
+    if data is None:
+        return None
+    if isinstance(data, bytes):
+        return data
+    if isinstance(data, str):
+        try:
+            return base64.b64decode(data)
+        except Exception:
+            return data.encode("utf-8")
+    return None
+
+
 def create_placeholder_image(output_path: str) -> str:
     output_file = Path(output_path)
     output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -78,10 +149,9 @@ def save_image_from_response(response, output_path: str) -> str:
     parts = getattr(response, "parts", None)
     if parts:
         for part in parts:
-            if getattr(part, "inline_data", None) is not None:
-                image = part.as_image()
-                save_pil_image(image, output_path)
-                return output_path
+            saved = save_part_image(part, output_path)
+            if saved:
+                return saved
 
     candidates = getattr(response, "candidates", None)
     if candidates:
@@ -91,12 +161,35 @@ def save_image_from_response(response, output_path: str) -> str:
                 continue
             c_parts = getattr(content, "parts", [])
             for part in c_parts:
-                if getattr(part, "inline_data", None) is not None:
-                    image = part.as_image()
-                    save_pil_image(image, output_path)
-                    return output_path
+                saved = save_part_image(part, output_path)
+                if saved:
+                    return saved
 
+    debug_path = write_response_debug(response)
     raise RuntimeError(f"Model did not return an image part: {_describe_response(response)}")
+
+
+def save_part_image(part, output_path: str) -> str | None:
+    inline_data = getattr(part, "inline_data", None)
+    if inline_data is None:
+        return None
+
+    as_image = getattr(part, "as_image", None)
+    if callable(as_image):
+        try:
+            image = as_image()
+            save_pil_image(image, output_path)
+            return output_path
+        except Exception:
+            pass
+
+    data = _inline_data_to_bytes(inline_data)
+    mime_type = getattr(inline_data, "mime_type", "") or ""
+    if data and mime_type.startswith("image/"):
+        Path(output_path).write_bytes(data)
+        return output_path
+
+    return None
 
 
 def save_pil_image(image, output_path: str):
@@ -118,6 +211,17 @@ def save_pil_image(image, output_path: str):
     raise TypeError(f"Unsupported image object returned by SDK: {type(image)!r}")
 
 
+def _generate_content(client, types, image_prompt: str):
+    return client.models.generate_content(
+        model=GEMINI_IMAGE_MODEL,
+        contents=[image_prompt],
+        config=types.GenerateContentConfig(
+            response_modalities=["TEXT", "IMAGE"],
+            image_config=types.ImageConfig(aspect_ratio=IMAGE_ASPECT_RATIO),
+        ),
+    )
+
+
 def generate_image(
     image_prompt: str,
     output_path: str,
@@ -134,14 +238,7 @@ def generate_image(
 
     for _ in range(retries):
         try:
-            response = client.models.generate_content(
-                model=GEMINI_IMAGE_MODEL,
-                contents=[image_prompt],
-                config=types.GenerateContentConfig(
-                    response_modalities=["TEXT", "IMAGE"],
-                    image_config=types.ImageConfig(aspect_ratio=IMAGE_ASPECT_RATIO),
-                ),
-            )
+            response = _generate_content(client, types, image_prompt)
             return save_image_from_response(response, output_path)
         except Exception as exc:
             last_error = repr(exc)

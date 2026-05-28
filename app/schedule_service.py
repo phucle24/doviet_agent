@@ -21,7 +21,7 @@ from app.db import (
     mark_image_ready,
     normalize_identity,
 )
-from app.topic_bank import get_static_topic, get_topic_by_index, series_for_global_index, static_topic_count_for_series
+from app.topic_bank import get_static_topic, series_for_global_index, static_topic_count_for_series
 
 
 BOOTSTRAP_STATE_PATH = DB_PATH.parent / "direct_image_bootstrap_until.txt"
@@ -370,7 +370,8 @@ def prepare_one_test_post(topic_index: int = 0) -> dict:
 
     tz = ZoneInfo(TIMEZONE)
     scheduled_at = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-    topic = get_topic_by_index(topic_index)
+    used_identities = list_existing_topic_identities()
+    topic = choose_unique_topic(topic_index, used_identities)
     post_id = build_post(topic, scheduled_at, "test", image_fallback_on_error=False)
     return {
         "id": post_id,

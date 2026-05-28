@@ -46,6 +46,13 @@ def validate_topic(topic: dict) -> list[str]:
     if topic.get("topic_type") != "vietnamese_riddle":
         errors.append("Unsupported topic_type for Đố Việt content.")
 
+    format_text = normalize_identity(topic.get("format", ""))
+    prompt_text = normalize_identity(topic.get("prompt_line", ""))
+    title_text = normalize_identity(topic.get("title", ""))
+    blocked_easy_patterns = ("điền", "dien", "che chữ", "che chu")
+    if any(pattern in format_text or pattern in prompt_text or pattern in title_text for pattern in blocked_easy_patterns):
+        errors.append("Topic uses an overly easy fill-in/hidden-word format.")
+
     answer = normalize_identity(topic.get("answer", ""))
     image_text = normalize_identity(topic.get("image_text", ""))
     if answer and image_text and answer in image_text:
