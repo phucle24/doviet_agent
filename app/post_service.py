@@ -8,7 +8,7 @@ from app.utils import slugify
 
 
 MODEL_RENDERED_TEXT_MARKER = "FINAL INFOGRAPHIC MUST CONTAIN THE EXACT TEXT BELOW."
-CAPTION_HASHTAGS = "#DoViet #KhoDoDanGian #DoVuiDanGian #VanHoaViet"
+CAPTION_HASHTAGS = "#dotucngu #DoViet #khodogiandan #dovui #duoihinhbatchu"
 AI_DISCLAIMERS = (
     "Ảnh minh họa AI.",
     "Ảnh minh hoạ AI.",
@@ -46,13 +46,122 @@ SERIES_STYLE_NOTES = {
     "do_meo_dan_gian": "simple object-focused folk puzzle, humorous everyday scene, one obvious visual twist, bold question mark if useful",
 }
 
+CAPTION_TEMPLATES = {
+    "do_tuc_ngu": [
+        [
+            "{code}",
+            "",
+            "Câu này nhìn quen quen mà nghĩ kỹ lại dễ lú lắm nha 😄",
+            "Gợi ý: {clue}",
+            "",
+            "Bạn đoán ra chưa? Comment đáp án xuống dưới 👇",
+            "",
+            "⏰ Sau 2 giờ, Đố Việt sẽ mở đáp án ở phần bình luận.",
+            "Theo dõi page để quay lại kiểm tra xem mình đúng không nhé!",
+        ],
+        [
+            "{code}",
+            "",
+            "Một bức hình, một câu tục ngữ. Nghe đơn giản nhưng đừng chủ quan nha 😆",
+            "Gợi ý nhỏ: {clue}",
+            "",
+            "Ai nghĩ ra đáp án thì thả ngay dưới bình luận 👇",
+            "",
+            "⏰ Đáp án lên sau 2 giờ.",
+            "Follow Đố Việt để khỏi lỡ khoảnh khắc “à há!” nha!",
+        ],
+    ],
+    "do_ca_dao": [
+        [
+            "{code}",
+            "",
+            "Câu này ai từng học chắc thấy quen lắm nè 😄",
+            "Gợi ý: {clue}",
+            "",
+            "Bạn còn nhớ câu ca dao này không? Comment thử đáp án 👇",
+            "",
+            "⏰ Sau 2 giờ, Đố Việt sẽ thả đáp án ở bình luận.",
+            "Theo dõi page để lát quay lại chấm điểm trí nhớ tuổi thơ nhé!",
+        ],
+        [
+            "{code}",
+            "",
+            "Một hình ảnh gợi nhớ cả tuổi thơ, nhưng nhớ đúng câu không mới khó 😆",
+            "Gợi ý nhỏ: {clue}",
+            "",
+            "Đoán được thì comment liền nha 👇",
+            "",
+            "⏰ Đáp án có sau 2 giờ ở phần bình luận.",
+            "Follow Đố Việt để không bị trôi mất câu trả lời!",
+        ],
+    ],
+    "duoi_hinh_bat_chu": [
+        [
+            "{code}",
+            "",
+            "Nhìn hình tưởng dễ, nhưng đừng để bị đánh lừa nha 😆",
+            "Gợi ý: {clue}",
+            "",
+            "Ai đoán được trong 5 giây thì comment liền 👇",
+            "",
+            "⏰ Sau 2 giờ, Đố Việt sẽ mở đáp án ở bình luận.",
+            "Follow page để không bỏ lỡ màn “à há!” nha!",
+        ],
+        [
+            "{code}",
+            "",
+            "Câu này nhìn phát tưởng ra ngay, nhưng càng nhìn càng nghi nghi đó 😄",
+            "Gợi ý nhỏ: {clue}",
+            "",
+            "Bạn ghép được cụm từ nào? Comment thử xem 👇",
+            "",
+            "⏰ Đáp án sẽ xuất hiện sau 2 giờ.",
+            "Theo dõi Đố Việt để quay lại xem mình có bị lừa không nha!",
+        ],
+    ],
+    "do_meo_dan_gian": [
+        [
+            "{code}",
+            "",
+            "Câu này trẻ con đôi khi đoán nhanh hơn người lớn đó 😄",
+            "Gợi ý: {clue}",
+            "",
+            "Đừng nghĩ quá xa, cứ comment đáp án bạn nghĩ tới trước tiên 👇",
+            "",
+            "⏰ Sau 2 giờ, Đố Việt sẽ công bố đáp án ở bình luận.",
+            "Theo dõi page để lát quay lại chấm điểm chính mình nha!",
+        ],
+        [
+            "{code}",
+            "",
+            "Nghe đơn giản nhưng dễ làm người lớn suy nghĩ quá mức lắm nha 😆",
+            "Gợi ý nhỏ: {clue}",
+            "",
+            "Bạn chọn đáp án nào? Comment thử xem 👇",
+            "",
+            "⏰ Đáp án sẽ có sau 2 giờ.",
+            "Follow Đố Việt để không bỏ lỡ câu trả lời!",
+        ],
+    ],
+}
 
-def append_caption_hashtags(caption: str, series_hashtag: str | None = None) -> str:
+ANSWER_OPENERS = [
+    "🎯 Mở đáp án sau 2 giờ đây!",
+    "🥁 Tới giờ bật mí rồi nè!",
+    "📣 Đáp án chính thức lên sóng!",
+    "✨ Ai chờ đáp án thì vào nhận kết quả nha!",
+]
+
+
+def template_index(topic: dict, total: int) -> int:
+    return sum(ord(char) for char in topic["topic_key"]) % total
+
+
+def append_caption_hashtags(caption: str) -> str:
     caption = caption.strip()
-    hashtags = CAPTION_HASHTAGS if not series_hashtag else f"{series_hashtag} {CAPTION_HASHTAGS}"
-    if hashtags in caption:
+    if CAPTION_HASHTAGS in caption:
         return caption
-    return f"{caption}\n\n{hashtags}"
+    return f"{caption}\n\n{CAPTION_HASHTAGS}"
 
 
 def remove_ai_disclaimer(caption: str) -> str:
@@ -67,26 +176,32 @@ def series_code(topic: dict) -> str:
 
 
 def build_riddle_caption(topic: dict) -> str:
-    lines = [
-        series_code(topic),
-        topic.get("prompt_line") or topic["default_prompt"],
-        f"Gợi ý: {topic['clue']}",
-        "Comment đáp án của bạn 👇",
-        "Đáp án sẽ có ở phần bình luận sau 2 giờ.",
-    ]
-    return append_caption_hashtags(
-        remove_ai_disclaimer("\n".join(lines)),
-        series_hashtag=topic.get("series_hashtag"),
+    templates = CAPTION_TEMPLATES.get(topic["series_key"], CAPTION_TEMPLATES["do_meo_dan_gian"])
+    lines = templates[template_index(topic, len(templates))]
+    caption = "\n".join(lines).format(
+        code=series_code(topic),
+        clue=topic["clue"],
     )
+    return append_caption_hashtags(remove_ai_disclaimer(caption))
 
 
 def build_answer_comment(topic: dict) -> str:
+    opener = ANSWER_OPENERS[template_index(topic, len(ANSWER_OPENERS))]
     prefix = topic.get("default_answer_prefix", "Đáp án")
     lines = [
+        opener,
+        "",
         f"{prefix}: {topic['answer']}",
     ]
     if topic.get("answer_note"):
-        lines.append(topic["answer_note"])
+        lines.extend(["", "Giải thích ngắn:", topic["answer_note"]])
+    lines.extend(
+        [
+            "",
+            "Bạn đoán trúng chưa? Nếu trúng thì nhận ngay 1 điểm danh dự nha 😄",
+            "Theo dõi Đố Việt để chơi tiếp câu mới!",
+        ]
+    )
     return "\n".join(lines)
 
 

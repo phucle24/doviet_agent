@@ -12,12 +12,15 @@ Nội dung xoay quanh 4 series:
 Pipeline hiện có:
 
 - tạo caption theo format series, ví dụ `[ĐỐ TỤC NGỮ #001]`
+- caption dùng giọng vui tươi, hóm hỉnh, kêu gọi comment và theo dõi page để quay lại xem đáp án sau 2 giờ
+- hashtag mặc định: `#dotucngu #DoViet #khodogiandan #dovui #duoihinhbatchu`
 - tạo prompt ảnh 4:5 để Gemini render ảnh final có chữ
 - style ảnh dùng prompt poster dân gian/game-show: thanh tiêu đề trên, cảnh gợi ý ở giữa, câu hỏi dưới, brand badge ở góc
 - lưu lịch bài vào SQLite
 - tạo ảnh qua Gemini Batch API
 - đăng ảnh lên Facebook Page
 - tự comment đáp án sau 2 giờ kể từ lúc bài được đăng
+- comment đáp án có câu mở vui, đáp án, giải thích ngắn, và câu kéo tương tác tiếp
 - tự bù batch mới khi số bài `READY` tương lai còn tối đa 6
 - kiểm tra DB để không tạo trùng `topic_key` hoặc đáp án đã từng lên lịch
 - lưu `content_fingerprint` và `answer_hash` để chặn trùng ở tầng database
