@@ -1,0 +1,10 @@
+[Unit]
+Description=Publish Do Viet afternoon posts daily
+
+[Timer]
+OnCalendar=*-*-* 15:00:00
+Persistent=true
+Unit=fb-animal-agent-publish-afternoon.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,15 @@
+[Unit]
+Description=Do Viet Agent dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/fb_animal_agent
+EnvironmentFile=/root/fb_animal_agent/.env
+ExecStart=/root/fb_animal_agent/venv/bin/python scripts/run_web.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

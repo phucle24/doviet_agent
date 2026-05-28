@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Đố Việt Agent{% endblock %}
+
+{% block content %}
+  <section class="workspace-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p>Quản lý lịch bài, preview ảnh/caption, đăng fanpage và comment đáp án sau 2 giờ.</p>
+    </div>
+    <div class="actions-row">
+      <form method="post" action="{{ url_for('action_prepare_week_batch') }}" class="inline-form">
+        <input type="number" min="1" max="30" name="days" value="7" aria-label="Số ngày batch">
+        <button class="button primary" type="submit">Tạo tuần Batch</button>
+      </form>
+      <form method="post" action="{{ url_for('action_poll_batch_images') }}">
+        <button class="button secondary" type="submit">Poll Batch ảnh</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="stats-grid" aria-label="Thống kê">
+    <div class="stat-card">
+      <span class="stat-label">Tổng bài</span>
+      <strong>{{ stats.total }}</strong>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">READY</span>
+      <strong>{{ stats.status_counts.READY }}</strong>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">POSTED</span>
+      <strong>{{ stats.status_counts.POSTED }}</strong>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">WAITING_IMAGE</span>
+      <strong>{{ stats.status_counts.WAITING_IMAGE }}</strong>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">FAILED</span>
+      <strong>{{ stats.status_counts.FAILED }}</strong>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Batch chờ submit</span>
+      <strong>{{ overview.waiting_unsubmitted }}</strong>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Batch chờ poll</span>
+      <strong>{{ overview.batch_jobs_to_poll }}</strong>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">READY đến giờ</span>
+      <strong>{{ overview.due_ready }}</strong>
+    </div>
+  </section>
+
+  <section class="status-guide" aria-label="Giải thích trạng thái">
+    <div class="guide-card">
+      <span class="status status-waiting_image">WAITING_IMAGE</span>
+      <p>Đã có caption/prompt, đang chờ Gemini Batch tạo ảnh.</p>
+    </div>
+    <div class="guide-card">
+      <span class="status status-ready">READY</span>
+      <p>Đã có ảnh final, sẵn sàng đăng khi đến lịch.</p>
+    </div>
+    <div class="guide-card">
+      <span class="status status-posted">POSTED</span>
+      <p>Đã đăng lên fanpage, chờ hoặc đã comment đáp án.</p>
+    </div>
+    <div class="guide-card">
+      <span class="status status-image_failed">IMAGE_FAILED</span>
+      <p>Batch ảnh lỗi, cần tạo lại hoặc kiểm tra prompt/model.</p>
+    </div>
+  </section>
+
+  <section class="toolbar">
+    <div class="filters" aria-label="Bộ lọc trạng thái">
+      <a class="filter-pill {% if not active_status %}active{% endif %}" href="{{ url_for('index') }}">Tất cả</a>
+      <a class="filter-pill {% if active_status == 'READY' %}active{% endif %}" href="{{ url_for('index', status='READY') }}">READY</a>
+      <a class="filter-pill {% if active_status == 'POSTED' %}active{% endif %}" href="{{ url_for('index', status='POSTED') }}">POSTED</a>
+      <a class="filter-pill {% if active_status == 'WAITING_IMAGE' %}active{% endif %}" href="{{ url_for('index', status='WAITING_IMAGE') }}">WAITING_IMAGE</a>
+      <a class="filter-pill {% if active_status == 'FAILED' %}active{% endif %}" href="{{ url_for('index', status='FAILED') }}">FAILED</a>
+      <a class="filter-pill {% if active_status == 'IMAGE_FAILED' %}active{% endif %}" href="{{ url_for('index', status='IMAGE_FAILED') }}">IMAGE_FAILED</a>
+      <a class="filter-pill {% if active_status == 'SKIPPED' %}active{% endif %}" href="{{ url_for('index', status='SKIPPED') }}">SKIPPED</a>
+    </div>
+    <span class="db-path">{{ stats.db_path }}</span>
+  </section>
+
+  <section class="post-table-wrap">
+    <table class="post-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Lịch đăng</th>
+          <th>Slot</th>
+          <th>Topic</th>
+          <th>Series</th>
+          <th>Tiêu đề</th>
+          <th>Loại</th>
+          <th>QC</th>
+          <th>Trạng thái</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for post in posts %}
+          <tr>
+            <td>#{{ post.id }}</td>
+            <td>{{ post.scheduled_at }}</td>
+            <td>{{ post.slot }}</td>
+            <td class="mono">{{ post.topic_key }}</td>
+            <td>{{ post.overlay_title or post.topic_type }}</td>
+            <td>{{ post.title }}</td>
+            <td>{{ post.topic_type }}</td>
+            <td>
+              <span class="quality quality-{{ (post.quality_status or 'UNKNOWN')|lower }}">
+                {{ post.quality_status or 'UNKNOWN' }}
+              </span>
+            </td>
+            <td><span class="status status-{{ post.status|lower }}">{{ post.status }}</span></td>
+            <td><a class="row-link" href="{{ url_for('post_detail', post_id=post.id) }}">Mở</a></td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="10" class="empty-cell">Chưa có bài nào. Bấm Tạo tuần Batch để tạo lịch bài.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

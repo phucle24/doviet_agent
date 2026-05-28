@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Do Viet future-post ensure daily
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+Unit=fb-animal-agent-ensure.service
+
+[Install]
+WantedBy=timers.target

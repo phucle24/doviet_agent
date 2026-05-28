@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Post #{{ post.id }} - Đố Việt Agent{% endblock %}
+
+{% block content %}
+  <section class="detail-header">
+    <div>
+      <a class="back-link" href="{{ url_for('index') }}">← Dashboard</a>
+      <h1>#{{ post.id }} {{ post.title }}</h1>
+      <div class="meta-line">
+        <span>{{ post.scheduled_at }}</span>
+        <span>{{ post.slot }}</span>
+        <span>{{ post.topic_key }}</span>
+        <span class="status status-{{ post.status|lower }}">{{ post.status }}</span>
+        <span class="quality quality-{{ (post.quality_status or 'UNKNOWN')|lower }}">{{ post.quality_status or 'UNKNOWN' }}</span>
+      </div>
+    </div>
+    <div class="actions-row">
+      {% if post.status == 'READY' %}
+        <form method="post" action="{{ url_for('action_publish', post_id=post.id) }}">
+          <button class="button primary danger-check" type="submit">Đăng ngay</button>
+        </form>
+      {% endif %}
+      <form method="post" action="{{ url_for('action_status', post_id=post.id) }}">
+        <input type="hidden" name="status" value="READY">
+        <button class="button secondary" type="submit">Reset READY</button>
+      </form>
+      <form method="post" action="{{ url_for('action_status', post_id=post.id) }}">
+        <input type="hidden" name="status" value="SKIPPED">
+        <button class="button secondary" type="submit">Skip</button>
+      </form>
+    </div>
+  </section>
+
+  {% if post.error_message %}
+    <section class="error-panel">
+      <strong>Lỗi gần nhất</strong>
+      <p>{{ post.error_message }}</p>
+    </section>
+  {% endif %}
+
+  <section class="detail-grid">
+    <div class="preview-pane">
+      {% if post.final_image_path %}
+        <img class="post-image" src="{{ url_for('media_post', post_id=post.id, kind='final') }}" alt="Ảnh final của post #{{ post.id }}">
+      {% else %}
+        <div class="missing-image">Chưa có ảnh final</div>
+      {% endif %}
+    </div>
+
+    <aside class="copy-pane">
+      <h2>Caption</h2>
+      <textarea id="caption" readonly>{{ post.caption }}</textarea>
+      <button class="button secondary" type="button" data-copy-target="caption">Copy caption</button>
+
+      {% if post.answer_comment %}
+        <h2>Bình luận đáp án</h2>
+        <textarea id="answer-comment" readonly>{{ post.answer_comment }}</textarea>
+        <button class="button secondary" type="button" data-copy-target="answer-comment">Copy đáp án</button>
+        <dl class="kv-list">
+          <div><dt>Comment lúc</dt><dd>{{ post.answer_comment_at or '-' }}</dd></div>
+          <div><dt>Trạng thái</dt><dd>{{ post.answer_comment_status or '-' }}</dd></div>
+          <div><dt>Comment ID</dt><dd class="mono">{{ post.fb_answer_comment_id or '-' }}</dd></div>
+          <div><dt>Lỗi</dt><dd>{{ post.answer_comment_error or '-' }}</dd></div>
+        </dl>
+      {% endif %}
+
+      <h2>Text fields</h2>
+      <dl class="kv-list">
+        <div><dt>Series</dt><dd>{{ post.overlay_title or '-' }}</dd></div>
+        <div><dt>Dạng</dt><dd>{{ post.overlay_subtitle or '-' }}</dd></div>
+        <div><dt>Stat</dt><dd>{{ post.overlay_stat or '-' }}</dd></div>
+        <div><dt>Hook</dt><dd>{{ post.overlay_hook or '-' }}</dd></div>
+      </dl>
+
+      <h2>Quality</h2>
+      <dl class="kv-list">
+        <div><dt>Status</dt><dd>{{ post.quality_status or '-' }}</dd></div>
+        <div><dt>Errors</dt><dd>{{ post.quality_errors or '-' }}</dd></div>
+        <div><dt>Fingerprint</dt><dd class="mono">{{ post.content_fingerprint or '-' }}</dd></div>
+        <div><dt>Answer hash</dt><dd class="mono">{{ post.answer_hash or '-' }}</dd></div>
+        <div><dt>Prompt</dt><dd>{{ post.prompt_version or '-' }}</dd></div>
+      </dl>
+
+      <h2>Image prompt</h2>
+      <p class="prompt-text">{{ post.image_prompt }}</p>
+
+      {% if post.batch_job_name %}
+        <h2>Batch</h2>
+        <dl class="kv-list">
+          <div><dt>Job</dt><dd class="mono">{{ post.batch_job_name }}</dd></div>
+          <div><dt>State</dt><dd>{{ post.batch_state or '-' }}</dd></div>
+          <div><dt>Error</dt><dd>{{ post.batch_error or '-' }}</dd></div>
+        </dl>
+      {% endif %}
+
+      {% if post.fb_post_id %}
+        <h2>Facebook</h2>
+        <p class="mono">{{ post.fb_post_id }}</p>
+      {% endif %}
+    </aside>
+  </section>
+{% endblock %}
