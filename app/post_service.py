@@ -14,7 +14,7 @@ from app.db import insert_post
 from app.utils import slugify
 
 
-MODEL_RENDERED_TEXT_MARKER = "FINAL INFOGRAPHIC MUST CONTAIN THE EXACT TEXT BELOW."
+MODEL_RENDERED_TEXT_MARKER = "FINAL RIDDLE IMAGE MUST USE VISUAL CLUES ONLY."
 CAPTION_HASHTAGS = "#dotucngu #DoViet #khodogiandan #dovui #duoihinhbatchu"
 AI_DISCLAIMERS = (
     "Ảnh minh họa AI.",
@@ -25,38 +25,25 @@ AI_DISCLAIMERS = (
 )
 
 RIDDLE_IMAGE_TEMPLATE = """
-FINAL INFOGRAPHIC MUST CONTAIN THE EXACT TEXT BELOW.
-Create a finished vertical 4:5 Vietnamese folk riddle poster for Facebook feed, inspired by polished Vietnamese "Đuổi Hình Bắt Chữ" game posters:
-- premium folk game-show layout, warm and highly shareable
-- thick top title banner and thick bottom question banner, both integrated into the artwork
-- central illustrated scene with clear visual clues, expressive characters or objects, cinematic sunset/warm village lighting
+FINAL RIDDLE IMAGE MUST USE VISUAL CLUES ONLY.
+Create a finished vertical 4:5 Vietnamese folk riddle image for Facebook feed:
+- premium folk puzzle artwork, warm, polished, highly shareable
+- one clear illustrated clue scene with expressive characters or objects, cinematic sunset/warm village lighting
 - Vietnamese countryside details when suitable: bamboo, thatched houses, banana leaves, rice straw, clay jars, village yard
-- rich lacquer red or royal purple banners with gold trim, subtle bevel, soft inner glow, clean ornamental border
-- bold readable Vietnamese typography, ivory/gold letters with soft shadow, no blurry or broken accents
-- small tasteful brand badge in one corner, like a round seal or small label, not covering the puzzle
+- rich folk colors with tasteful red/gold accents, clean ornamental border if useful
+- the puzzle must be understandable from the illustration, not from written labels
+- exactly one tiny corner brand badge is allowed, reading only: Đố Việt
+- the corner badge must be small, tasteful, readable, and outside the main clue
+- no other text anywhere in the image
+- no title banner, no bottom question banner, no format tag, no center clue text
 - no answer shown anywhere in the image
-- no watermark, QR code, fake UI, random extra words, or unrelated logos
-- all text must be sharp, correctly accented, and fully inside the 4:5 canvas
+- no watermark, QR code, fake UI, random extra words, placeholder labels, or unrelated logos
 """.strip()
-
-BOTTOM_QUESTIONS = {
-    "do_tuc_ngu": "ĐÂY LÀ CÂU TỤC NGỮ NÀO?",
-    "do_ca_dao": "ĐÂY LÀ CÂU CA DAO NÀO?",
-    "duoi_hinh_bat_chu": "ĐOÁN CỤM TỪ LÀ GÌ?",
-    "do_meo_dan_gian": "ĐÁP ÁN LÀ GÌ?",
-}
-
-CENTER_TEXT_BY_SERIES = {
-    "do_tuc_ngu": "ĐOÁN TỤC NGỮ",
-    "do_ca_dao": "ĐOÁN CA DAO",
-    "duoi_hinh_bat_chu": "NHÌN HÌNH\nĐOÁN CHỮ",
-    "do_meo_dan_gian": "CÂU ĐỐ MẸO",
-}
 
 SERIES_STYLE_NOTES = {
     "do_tuc_ngu": "storybook folk illustration, witty visual metaphor, familiar rural Vietnamese objects, warm red banner",
     "do_ca_dao": "poetic Vietnamese countryside, gentle nostalgic mood, soft gold light, elegant red or plum banner",
-    "duoi_hinh_bat_chu": "fun rebus game poster, clear separated clues, playful expressions, polished purple or red game-show banner",
+    "duoi_hinh_bat_chu": "fun visual rebus puzzle, clear separated clues, playful expressions, polished folk game artwork",
     "do_meo_dan_gian": "simple object-focused folk puzzle, humorous everyday scene, one obvious visual twist, bold question mark if useful",
 }
 
@@ -179,10 +166,6 @@ def clue_line(topic: dict) -> str:
     return "Nhìn hình rồi đoán thẳng nha 😄"
 
 
-def safe_center_image_text(topic: dict) -> str:
-    return CENTER_TEXT_BY_SERIES.get(topic.get("series_key"), "ĐOÁN ĐÁP ÁN")
-
-
 def append_caption_hashtags(caption: str) -> str:
     caption = caption.strip()
     if CAPTION_HASHTAGS in caption:
@@ -237,45 +220,38 @@ def answer_comment_at(scheduled_at: str) -> str:
 
 
 def build_model_rendered_riddle_prompt(topic: dict) -> str:
-    title = f"{topic['series_label']} #{topic['series_number']:03d}"
-    image_text = safe_center_image_text(topic)
     visual_brief = topic.get("image_brief", "")
-    format_label = topic.get("format", "Câu đố dân gian")
-    bottom_question = BOTTOM_QUESTIONS.get(topic.get("series_key"), "ĐÁP ÁN LÀ GÌ?")
     style_note = SERIES_STYLE_NOTES.get(topic.get("series_key"), "premium Vietnamese folk puzzle poster")
 
     return (
         f"{RIDDLE_IMAGE_TEMPLATE}\n\n"
-        "Text to render exactly, and only these text strings:\n"
-        f"TOP_BANNER_TITLE: {title}\n"
-        f"SMALL_FORMAT_TAG: {format_label}\n"
-        f"CENTER_CLUE_TEXT: {image_text}\n"
-        f"BOTTOM_BANNER_QUESTION: {bottom_question}\n"
-        "CORNER_BRAND_BADGE: Đố Việt - Kho Đố Dân Gian\n\n"
+        "Allowed text policy:\n"
+        "- Render only one small corner badge with the exact text: Đố Việt\n"
+        "- Do not render any category label, series label, game title, question title, or clue text.\n"
+        "- Do not render technical placeholder labels or instruction names.\n"
+        "- Do not render top banners, bottom banners, speech bubbles, captions, signs, labels, subtitles, or any decorative text.\n\n"
         "Strict answer rule:\n"
         "- The answer is stored separately for a Facebook comment; DO NOT reveal it in the image.\n"
         "- Do not render any answer words, clue words, split-answer words, rebus labels, or syllables from the answer as text.\n"
         "- Text on the poster must stay generic; the puzzle clue must come from the illustration only.\n"
         "- The image should only give visual clues and invite comments.\n\n"
         "Reference-inspired layout:\n"
-        "- Top 14-18% of poster: large lacquer banner with TOP_BANNER_TITLE centered.\n"
-        "- Middle 66-72%: vivid illustrated clue scene, clean focal point, no busy clutter.\n"
-        "- Bottom 12-16%: lacquer banner with BOTTOM_BANNER_QUESTION centered in big type.\n"
-        "- Place SMALL_FORMAT_TAG as a small pill or ribbon near the top-left of the scene.\n"
-        "- Place CORNER_BRAND_BADGE as a small round gold/red seal in the bottom-right corner, outside the main clue, readable but secondary.\n"
+        "- Full image area is the illustrated clue scene; no title/header/footer text areas.\n"
+        "- Keep a clean focal point, not busy clutter.\n"
+        "- Place the small 'Đố Việt' badge in one corner only, preferably bottom-right, readable but secondary.\n"
         "- Use consistent margins; never crop text or characters.\n\n"
         "Enhanced art direction:\n"
         f"{style_note}\n\n"
         "Visual clue direction:\n"
         f"{visual_brief}\n\n"
         "Composition rules:\n"
-        "- Render the brand only as CORNER_BRAND_BADGE, once, in a corner.\n"
+        "- Render the brand only as 'Đố Việt', once, in a corner.\n"
         "- Make the clue understandable at phone size.\n"
-        "- For Đuổi Hình Bắt Chữ, use separate clean rebus panels with plus signs if helpful.\n"
-        "- For tục ngữ/ca dao, use a poetic Vietnamese countryside or folk scene.\n"
-        "- For đố mẹo dân gian, use a simple object-focused visual clue.\n"
+        "- For rebus puzzles, use separate clean visual panels if helpful, but do not use written words or text labels.\n"
+        "- For proverb or folk-poetry puzzles, use a poetic Vietnamese countryside or folk scene.\n"
+        "- For trick-question puzzles, use a simple object-focused visual clue.\n"
         "- Keep faces, objects, and props charming and expressive, not creepy.\n"
-        "- Do not add QR codes, social icons, fake UI, English filler text, or extra captions."
+        "- Do not add QR codes, social icons, fake UI, English filler text, Vietnamese filler text, or extra captions."
     )
 
 
@@ -316,7 +292,7 @@ def build_post_payload(topic: dict, scheduled_at: str, slot: str) -> dict:
         "answer_hash": answer_hash(topic),
         "quality_status": quality_status(topic),
         "quality_errors": None,
-        "prompt_version": "doviet-riddle-v2-reference-poster",
+        "prompt_version": "doviet-riddle-v3-visual-only",
         "difficulty": topic.get("difficulty"),
         "viral_score": topic.get("viral_score"),
         "format_family": topic.get("format_family"),

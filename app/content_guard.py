@@ -17,7 +17,6 @@ REQUIRED_TOPIC_FIELDS = (
     "answer",
     "answer_note",
     "image_brief",
-    "image_text",
 )
 
 

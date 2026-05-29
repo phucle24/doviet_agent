@@ -69,10 +69,10 @@ Yêu cầu:
 1. Nội dung phải phù hợp văn hóa Việt, dễ hiểu, kéo comment.
 2. Không dùng đáp án mơ hồ hoặc gây tranh cãi.
 3. Không để lộ đáp án hoặc một phần quá rõ của đáp án trong image_text.
-4. image_brief viết bằng tiếng Anh, mô tả cảnh/hình ảnh để Gemini tạo poster 4:5.
-5. image_text viết tiếng Việt, rất ngắn, chỉ dùng câu chung như "ĐOÁN TỤC NGỮ", "ĐOÁN CA DAO", "NHÌN HÌNH ĐOÁN CHỮ"; KHÔNG viết chữ ghép đáp án, âm tiết đáp án, từ khóa đáp án hoặc gợi ý trực tiếp.
+4. image_brief viết bằng tiếng Anh, mô tả cảnh/hình ảnh để Gemini tạo ảnh 4:5 bằng manh mối thị giác, không phụ thuộc vào chữ.
+5. image_text để chuỗi rỗng hoặc "Đố Việt"; KHÔNG viết "ĐOÁN TỤC NGỮ", "ĐOÁN CA DAO", "NHÌN HÌNH ĐOÁN CHỮ", chữ ghép đáp án, âm tiết đáp án, từ khóa đáp án hoặc gợi ý trực tiếp.
 6. answer_note giải thích ngắn 1 câu.
-7. Với Đuổi Hình Bắt Chữ, image_brief được mô tả manh mối bằng hình ảnh, nhưng image_text vẫn phải generic, không dùng rebus text như "mặt trời + chân + lý".
+7. Với Đuổi Hình Bắt Chữ, image_brief được mô tả manh mối bằng hình ảnh, nhưng image_text không dùng rebus text như "mặt trời + chân + lý".
 8. Với ca dao/thành ngữ/tục ngữ dễ quen thuộc, clue phải là gợi ý rất chung, không trích nguyên văn câu trả lời.
 9. difficulty là "medium" hoặc "hard"; tránh "easy".
 10. viral_score là số nguyên 70-100, ưu tiên câu dễ kéo bình luận.
