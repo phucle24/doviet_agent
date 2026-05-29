@@ -41,6 +41,28 @@ SERIES_META = {
     },
 }
 
+
+DIFFICULTY_BY_SERIES = {
+    "do_tuc_ngu": "medium",
+    "do_ca_dao": "medium",
+    "duoi_hinh_bat_chu": "hard",
+    "do_meo_dan_gian": "medium",
+}
+
+VIRAL_SCORE_BY_SERIES = {
+    "do_tuc_ngu": 84,
+    "do_ca_dao": 76,
+    "duoi_hinh_bat_chu": 92,
+    "do_meo_dan_gian": 82,
+}
+
+FORMAT_FAMILY_BY_SERIES = {
+    "do_tuc_ngu": "proverb_visual",
+    "do_ca_dao": "folk_poetry_visual",
+    "duoi_hinh_bat_chu": "visual_rebus",
+    "do_meo_dan_gian": "folk_trick_question",
+}
+
 RIDDLE_TOPICS = {
     "do_tuc_ngu": [
         {
@@ -220,7 +242,7 @@ RIDDLE_TOPICS = {
             "answer": "Mặt trời chân lý.",
             "answer_note": "Đây là kiểu bắt chữ theo âm và nghĩa của từng hình.",
             "image_brief": "three clear rebus panels: bright sun, human foot, scales of justice or truth symbol, playful Vietnamese puzzle poster",
-            "image_text": "☀ + 🦶 + ⚖ = ?",
+            "image_text": "NHÌN HÌNH\nĐOÁN CHỮ",
         },
         {
             "topic_key": "ca_chep_hoa_rong",
@@ -232,7 +254,7 @@ RIDDLE_TOPICS = {
             "answer": "Cá chép hóa rồng.",
             "answer_note": "Cụm từ thường nói về sự vươn lên, đổi đời.",
             "image_brief": "carp leaping through a golden gate and transforming into a dragon, Vietnamese folk art style, energetic",
-            "image_text": "ĐOÁN CỤM TỪ\nCÁ + ?",
+            "image_text": "NHÌN HÌNH\nĐOÁN CHỮ",
         },
         {
             "topic_key": "nuoc_mat_ca_sau",
@@ -244,7 +266,7 @@ RIDDLE_TOPICS = {
             "answer": "Nước mắt cá sấu.",
             "answer_note": "Cụm từ chỉ sự giả vờ thương xót, không thật lòng.",
             "image_brief": "a crocodile with exaggerated tear drops, comic folk poster, clean rebus layout",
-            "image_text": "💧 + CÁ SẤU = ?",
+            "image_text": "NHÌN HÌNH\nĐOÁN CHỮ",
         },
         {
             "topic_key": "gao_nep_gao_te",
@@ -256,7 +278,7 @@ RIDDLE_TOPICS = {
             "answer": "Gạo nếp gạo tẻ.",
             "answer_note": "Đáp án dựa trực tiếp vào hình ảnh hai loại gạo.",
             "image_brief": "two labeled-looking but not text-labeled bowls of sticky rice grains and regular rice grains, Vietnamese kitchen, clean puzzle composition",
-            "image_text": "2 LOẠI GẠO = ?",
+            "image_text": "NHÌN HÌNH\nĐOÁN CHỮ",
         },
         {
             "topic_key": "rau_nao_sau_ay",
@@ -268,7 +290,7 @@ RIDDLE_TOPICS = {
             "answer": "Rau nào sâu ấy.",
             "answer_note": "Đây là kiểu đuổi hình bắt chữ theo âm từng phần.",
             "image_brief": "four rebus panels: leafy vegetables, question mark, small worm, matching pair symbol, playful Vietnamese puzzle poster",
-            "image_text": "🥬 + ? + 🐛 + = ?",
+            "image_text": "NHÌN HÌNH\nĐOÁN CHỮ",
         },
     ],
     "do_meo_dan_gian": [
@@ -349,6 +371,11 @@ def annotate_topic(topic: dict, series_key: str, series_number: int) -> dict:
     topic["series_number"] = series_number
     topic["default_prompt"] = meta["default_prompt"]
     topic["default_answer_prefix"] = meta["default_answer_prefix"]
+    topic.setdefault("difficulty", DIFFICULTY_BY_SERIES.get(series_key, "medium"))
+    topic.setdefault("viral_score", VIRAL_SCORE_BY_SERIES.get(series_key, 70))
+    topic.setdefault("format_family", FORMAT_FAMILY_BY_SERIES.get(series_key, series_key))
+    topic.setdefault("spoiler_risk", "low")
+    topic.setdefault("safe_hint_level", "none")
     return topic
 
 

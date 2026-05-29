@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -14,10 +15,14 @@ from app.db import (
     list_posts,
     mark_failed,
     mark_posted,
+    reset_post_image_for_retry,
     schedule_answer_comment,
     update_status,
+    update_post_caption,
+    update_post_image_prompt,
 )
 from app.facebook_service import publish_photo
+from app.post_service import build_model_rendered_riddle_prompt, build_riddle_caption
 from app.schedule_service import prepare_one_test_post, prepare_weekly_posts, prepare_weekly_posts_for_batch
 
 
@@ -116,7 +121,14 @@ def create_app() -> Flask:
             else:
                 ready = sum(result["ready"] for result in results)
                 failed = sum(result["failed"] for result in results)
-                flash(f"Polled {len(results)} batch jobs. READY={ready}, failed={failed}.", "success")
+                retried = sum(result.get("retried", 0) for result in results)
+                retry_batch = submit_pending_image_batch(limit=min(retried, 2)) if retried else {"submitted": 0}
+                suffix = (
+                    f" Submitted retry batch {retry_batch['batch_job_name']}."
+                    if retry_batch.get("submitted")
+                    else ""
+                )
+                flash(f"Polled {len(results)} batch jobs. READY={ready}, retry={retried}, failed={failed}.{suffix}", "success")
         except Exception as exc:
             flash(f"Poll batch failed: {exc}", "error")
         return redirect(url_for("index"))
@@ -177,6 +189,62 @@ def create_app() -> Flask:
             return redirect(url_for("post_detail", post_id=post_id))
         update_status(post_id, status)
         flash(f"Updated post #{post_id} to {status}.", "success")
+        return redirect(url_for("post_detail", post_id=post_id))
+
+    @flask_app.post("/posts/<int:post_id>/retry-image")
+    def action_retry_image(post_id: int):
+        post = get_post(post_id)
+        if not post:
+            abort(404)
+        try:
+            reset_post_image_for_retry(post_id, "Manual retry from dashboard.")
+            result = submit_pending_image_batch(limit=1)
+            if result["submitted"]:
+                flash(f"Queued image retry in batch {result['batch_job_name']}.", "success")
+            else:
+                flash("Image retry queued; no batch submitted.", "success")
+        except Exception as exc:
+            flash(f"Retry image failed: {exc}", "error")
+        return redirect(url_for("post_detail", post_id=post_id))
+
+    @flask_app.post("/posts/<int:post_id>/regenerate-caption")
+    def action_regenerate_caption(post_id: int):
+        post = get_post(post_id)
+        if not post:
+            abort(404)
+        try:
+            topic = json.loads(post["topic_payload"])
+            caption = build_riddle_caption(topic)
+            update_post_caption(post_id, caption)
+            flash("Caption regenerated.", "success")
+        except Exception as exc:
+            flash(f"Regenerate caption failed: {exc}", "error")
+        return redirect(url_for("post_detail", post_id=post_id))
+
+    @flask_app.post("/posts/<int:post_id>/regenerate-image-prompt")
+    def action_regenerate_image_prompt(post_id: int):
+        post = get_post(post_id)
+        if not post:
+            abort(404)
+        try:
+            topic = json.loads(post["topic_payload"])
+            image_prompt = build_model_rendered_riddle_prompt(topic)
+            update_post_image_prompt(post_id, image_prompt)
+            result = submit_pending_image_batch(limit=1)
+            if result["submitted"]:
+                flash(f"Image prompt regenerated and queued in batch {result['batch_job_name']}.", "success")
+            else:
+                flash("Image prompt regenerated.", "success")
+        except Exception as exc:
+            flash(f"Regenerate image prompt failed: {exc}", "error")
+        return redirect(url_for("post_detail", post_id=post_id))
+
+    @flask_app.post("/posts/<int:post_id>/mark-too-easy")
+    def action_mark_too_easy(post_id: int):
+        if not get_post(post_id):
+            abort(404)
+        update_status(post_id, "SKIPPED")
+        flash("Marked too easy and skipped.", "success")
         return redirect(url_for("post_detail", post_id=post_id))
 
     @flask_app.route("/media/post/<int:post_id>/<kind>")

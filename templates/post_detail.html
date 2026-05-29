@@ -29,6 +29,20 @@
         <input type="hidden" name="status" value="SKIPPED">
         <button class="button secondary" type="submit">Skip</button>
       </form>
+      {% if post.status in ['IMAGE_FAILED', 'WAITING_IMAGE'] %}
+        <form method="post" action="{{ url_for('action_retry_image', post_id=post.id) }}">
+          <button class="button secondary" type="submit">Retry image</button>
+        </form>
+      {% endif %}
+      <form method="post" action="{{ url_for('action_regenerate_caption', post_id=post.id) }}">
+        <button class="button secondary" type="submit">Regenerate caption</button>
+      </form>
+      <form method="post" action="{{ url_for('action_regenerate_image_prompt', post_id=post.id) }}">
+        <button class="button secondary" type="submit">Regenerate image</button>
+      </form>
+      <form method="post" action="{{ url_for('action_mark_too_easy', post_id=post.id) }}">
+        <button class="button secondary" type="submit">Too easy</button>
+      </form>
     </div>
   </section>
 
@@ -69,6 +83,10 @@
       <dl class="kv-list">
         <div><dt>Series</dt><dd>{{ post.overlay_title or '-' }}</dd></div>
         <div><dt>Dạng</dt><dd>{{ post.overlay_subtitle or '-' }}</dd></div>
+        <div><dt>Family</dt><dd>{{ post.format_family or '-' }}</dd></div>
+        <div><dt>Difficulty</dt><dd>{{ post.difficulty or '-' }}</dd></div>
+        <div><dt>Viral</dt><dd>{{ post.viral_score or '-' }}</dd></div>
+        <div><dt>Spoiler</dt><dd>{{ post.spoiler_risk or '-' }}</dd></div>
         <div><dt>Stat</dt><dd>{{ post.overlay_stat or '-' }}</dd></div>
         <div><dt>Hook</dt><dd>{{ post.overlay_hook or '-' }}</dd></div>
       </dl>
@@ -78,6 +96,8 @@
         <div><dt>Status</dt><dd>{{ post.quality_status or '-' }}</dd></div>
         <div><dt>Errors</dt><dd>{{ post.quality_errors or '-' }}</dd></div>
         <div><dt>Fingerprint</dt><dd class="mono">{{ post.content_fingerprint or '-' }}</dd></div>
+        <div><dt>Visual FP</dt><dd class="mono">{{ post.visual_fingerprint or '-' }}</dd></div>
+        <div><dt>Caption FP</dt><dd class="mono">{{ post.caption_fingerprint or '-' }}</dd></div>
         <div><dt>Answer hash</dt><dd class="mono">{{ post.answer_hash or '-' }}</dd></div>
         <div><dt>Prompt</dt><dd>{{ post.prompt_version or '-' }}</dd></div>
       </dl>
@@ -90,6 +110,7 @@
         <dl class="kv-list">
           <div><dt>Job</dt><dd class="mono">{{ post.batch_job_name }}</dd></div>
           <div><dt>State</dt><dd>{{ post.batch_state or '-' }}</dd></div>
+          <div><dt>Retry</dt><dd>{{ post.batch_retry_count or 0 }}</dd></div>
           <div><dt>Error</dt><dd>{{ post.batch_error or '-' }}</dd></div>
         </dl>
       {% endif %}

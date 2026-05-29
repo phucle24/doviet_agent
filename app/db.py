@@ -65,6 +65,13 @@ def init_db():
             "quality_status": "TEXT",
             "quality_errors": "TEXT",
             "prompt_version": "TEXT",
+            "difficulty": "TEXT",
+            "viral_score": "INTEGER",
+            "format_family": "TEXT",
+            "spoiler_risk": "TEXT",
+            "visual_fingerprint": "TEXT",
+            "caption_fingerprint": "TEXT",
+            "batch_retry_count": "INTEGER DEFAULT 0",
         },
     )
     _backfill_content_identities(cur)
@@ -79,11 +86,21 @@ def init_db():
     cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_topic_key ON posts (topic_key)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_batch_job_name ON posts (batch_job_name)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_answer_hash ON posts (answer_hash)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_format_family ON posts (format_family)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_viral_score ON posts (viral_score)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_batch_retry_count ON posts (batch_retry_count)")
     cur.execute(
         """
         CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_content_fingerprint_unique
         ON posts (content_fingerprint)
         WHERE content_fingerprint IS NOT NULL
+        """
+    )
+    cur.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_visual_fingerprint_unique
+        ON posts (visual_fingerprint)
+        WHERE visual_fingerprint IS NOT NULL
         """
     )
 
@@ -188,8 +205,9 @@ def insert_post(data: dict) -> int:
             answer_comment, answer_comment_at, answer_comment_status,
             fb_answer_comment_id, answer_comment_error, answer_commented_at,
             content_fingerprint, answer_hash, quality_status, quality_errors,
-            prompt_version
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            prompt_version, difficulty, viral_score, format_family, spoiler_risk,
+            visual_fingerprint, caption_fingerprint, batch_retry_count
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data["scheduled_at"],
@@ -224,12 +242,21 @@ def insert_post(data: dict) -> int:
                 data.get("quality_status"),
                 data.get("quality_errors"),
                 data.get("prompt_version"),
+                data.get("difficulty"),
+                data.get("viral_score"),
+                data.get("format_family"),
+                data.get("spoiler_risk"),
+                data.get("visual_fingerprint"),
+                data.get("caption_fingerprint"),
+                data.get("batch_retry_count", 0),
             ),
         )
     except sqlite3.IntegrityError as exc:
         conn.close()
         if "content_fingerprint" in str(exc):
             raise ValueError("Duplicate content blocked by content_fingerprint.") from exc
+        if "visual_fingerprint" in str(exc):
+            raise ValueError("Duplicate content blocked by visual_fingerprint.") from exc
         raise
 
     post_id = cur.lastrowid
@@ -263,6 +290,24 @@ def count_posts() -> int:
     return total
 
 
+def recent_format_families(limit: int = 3) -> list[str]:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT format_family
+        FROM posts
+        WHERE format_family IS NOT NULL
+        ORDER BY scheduled_at DESC, id DESC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+    rows = [row["format_family"] for row in cur.fetchall() if row["format_family"]]
+    conn.close()
+    return rows
+
+
 def count_future_posts(now_iso: str, statuses: tuple[str, ...] = ("READY", "WAITING_IMAGE")) -> int:
     conn = get_conn()
     cur = conn.cursor()
@@ -286,7 +331,7 @@ def list_existing_topic_identities() -> dict[str, set[str]]:
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT topic_key, topic_payload, answer_comment, content_fingerprint, answer_hash
+        SELECT topic_key, topic_payload, answer_comment, content_fingerprint, answer_hash, visual_fingerprint
         FROM posts
         ORDER BY id ASC
         """
@@ -302,6 +347,8 @@ def list_existing_topic_identities() -> dict[str, set[str]]:
             topic_keys.add(row["topic_key"])
         if row["content_fingerprint"]:
             content_fingerprints.add(row["content_fingerprint"])
+        if row["visual_fingerprint"]:
+            content_fingerprints.add(row["visual_fingerprint"])
         if row["answer_hash"]:
             answers.add(row["answer_hash"])
 
@@ -531,6 +578,33 @@ def mark_image_failed(post_id: int, error_message: str):
     conn.close()
 
 
+def reset_post_image_for_retry(post_id: int, error_message: str | None = None):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE posts
+        SET status = 'WAITING_IMAGE',
+            error_message = ?,
+            batch_job_name = NULL,
+            batch_state = NULL,
+            batch_error = ?,
+            batch_submitted_at = NULL,
+            batch_completed_at = NULL,
+            batch_retry_count = COALESCE(batch_retry_count, 0) + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (
+            error_message[:1000] if error_message else None,
+            error_message[:1000] if error_message else None,
+            post_id,
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+
 def update_status(post_id: int, status: str):
     conn = get_conn()
     cur = conn.cursor()
@@ -559,6 +633,28 @@ def update_post_caption(post_id: int, caption: str):
         WHERE id = ?
         """,
         (caption, post_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_post_image_prompt(post_id: int, image_prompt: str):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE posts
+        SET image_prompt = ?,
+            status = 'WAITING_IMAGE',
+            batch_job_name = NULL,
+            batch_state = NULL,
+            batch_error = NULL,
+            batch_submitted_at = NULL,
+            batch_completed_at = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (image_prompt, post_id),
     )
     conn.commit()
     conn.close()

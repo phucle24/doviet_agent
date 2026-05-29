@@ -8,6 +8,7 @@ from app.db import (
     list_posts_for_batch_submission,
     mark_image_failed,
     mark_image_ready,
+    reset_post_image_for_retry,
     set_batch_for_posts,
     update_batch_state,
 )
@@ -21,6 +22,18 @@ COMPLETED_STATES = {
     "JOB_STATE_CANCELLED",
     "JOB_STATE_EXPIRED",
 }
+
+TRANSIENT_ERROR_PATTERNS = (
+    "deadline",
+    "deadline_exceeded",
+    "deadline expired",
+    "operation could complete",
+    "temporarily unavailable",
+    "internal",
+    "backend",
+    "predictionservice",
+)
+MAX_BATCH_RETRIES = 2
 
 
 def _ensure_api_key():
@@ -95,6 +108,29 @@ def _inline_response_error(inline_response) -> str | None:
     return repr(error)
 
 
+def is_transient_image_error(message: str | None) -> bool:
+    if not message:
+        return False
+    lowered = message.casefold()
+    return any(pattern in lowered for pattern in TRANSIENT_ERROR_PATTERNS)
+
+
+def can_retry_post(post) -> bool:
+    try:
+        retry_count = int(post["batch_retry_count"] or 0)
+    except (KeyError, TypeError, ValueError):
+        retry_count = 0
+    return retry_count < MAX_BATCH_RETRIES
+
+
+def defer_or_fail_image(post, message: str) -> str:
+    if is_transient_image_error(message) and can_retry_post(post):
+        reset_post_image_for_retry(post["id"], f"Transient image error, queued retry: {message}")
+        return "retry"
+    mark_image_failed(post["id"], message)
+    return "failed"
+
+
 def process_batch_job(batch_job_name: str) -> dict:
     _ensure_api_key()
     client = _client()
@@ -106,46 +142,63 @@ def process_batch_job(batch_job_name: str) -> dict:
         error_message = repr(error) if error else None
         update_batch_state(batch_job_name, state, error_message)
         failed = 0
+        retried = 0
         if state in COMPLETED_STATES:
             message = error_message or f"Batch job finished with state {state}."
             for post in list_posts_by_batch_job(batch_job_name):
-                mark_image_failed(post["id"], message)
-                failed += 1
+                outcome = defer_or_fail_image(post, message)
+                if outcome == "retry":
+                    retried += 1
+                else:
+                    failed += 1
         return {
             "batch_job_name": batch_job_name,
             "state": state,
             "ready": 0,
             "failed": failed,
+            "retried": retried,
         }
 
     posts = list_posts_by_batch_job(batch_job_name)
     responses = _inline_responses(batch_job)
     ready = 0
     failed = 0
+    retried = 0
 
     if len(responses) != len(posts):
         message = f"Batch response count mismatch: posts={len(posts)} responses={len(responses)}"
         for post in posts:
-            mark_image_failed(post["id"], message)
-            failed += 1
+            outcome = defer_or_fail_image(post, message)
+            if outcome == "retry":
+                retried += 1
+            else:
+                failed += 1
         return {
             "batch_job_name": batch_job_name,
             "state": state,
             "ready": ready,
             "failed": failed,
+            "retried": retried,
         }
 
     for post, inline_response in zip(posts, responses):
         error = _inline_response_error(inline_response)
         if error:
-            mark_image_failed(post["id"], error)
-            failed += 1
+            outcome = defer_or_fail_image(post, error)
+            if outcome == "retry":
+                retried += 1
+            else:
+                failed += 1
             continue
 
         response = getattr(inline_response, "response", None)
         if not response:
-            mark_image_failed(post["id"], "Batch inline response has no response payload.")
-            failed += 1
+            message = "Batch inline response has no response payload."
+            outcome = defer_or_fail_image(post, message)
+            if outcome == "retry":
+                retried += 1
+            else:
+                failed += 1
             continue
 
         try:
@@ -159,8 +212,11 @@ def process_batch_job(batch_job_name: str) -> dict:
                 mark_image_ready(post["id"], post["raw_image_path"], post["final_image_path"])
             ready += 1
         except Exception as exc:
-            mark_image_failed(post["id"], str(exc))
-            failed += 1
+            outcome = defer_or_fail_image(post, str(exc))
+            if outcome == "retry":
+                retried += 1
+            else:
+                failed += 1
 
     update_batch_state(batch_job_name, state, None)
     return {
@@ -168,6 +224,7 @@ def process_batch_job(batch_job_name: str) -> dict:
         "state": state,
         "ready": ready,
         "failed": failed,
+        "retried": retried,
     }
 
 

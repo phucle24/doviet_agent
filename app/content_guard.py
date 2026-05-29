@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 
 from app.db import normalize_identity
 
@@ -37,6 +38,58 @@ def content_fingerprint(topic: dict) -> str:
     return stable_hash(json.dumps(payload, ensure_ascii=False, sort_keys=True))
 
 
+def visual_fingerprint(topic: dict) -> str:
+    payload = {
+        "series_key": topic.get("series_key", ""),
+        "format_family": normalize_identity(topic.get("format_family", "")),
+        "answer": normalize_identity(topic.get("answer", "")),
+        "image_brief": normalize_identity(topic.get("image_brief", "")),
+    }
+    return stable_hash(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+
+
+def caption_fingerprint(caption: str) -> str:
+    return stable_hash(normalize_identity(caption))
+
+
+def _meaningful_tokens(value: str) -> set[str]:
+    normalized = normalize_identity(value)
+    tokens = re.findall(r"[\wÀ-ỹ]+", normalized, flags=re.UNICODE)
+    stopwords = {
+        "câu",
+        "đáp",
+        "án",
+        "đoán",
+        "hình",
+        "chữ",
+        "tục",
+        "ngữ",
+        "thành",
+        "ca",
+        "dao",
+        "là",
+        "gì",
+        "nào",
+        "và",
+        "của",
+        "có",
+        "một",
+    }
+    return {token for token in tokens if len(token) >= 2 and token not in stopwords}
+
+
+def _text_reveals_answer(text: str, answer: str) -> bool:
+    answer_tokens = _meaningful_tokens(answer)
+    text_tokens = _meaningful_tokens(text)
+    if not answer_tokens or not text_tokens:
+        return False
+
+    overlap = answer_tokens & text_tokens
+    if any(len(token) >= 5 for token in overlap):
+        return True
+    return len(overlap) >= 2
+
+
 def validate_topic(topic: dict) -> list[str]:
     errors = []
     for field in REQUIRED_TOPIC_FIELDS:
@@ -57,6 +110,20 @@ def validate_topic(topic: dict) -> list[str]:
     image_text = normalize_identity(topic.get("image_text", ""))
     if answer and image_text and answer in image_text:
         errors.append("Image text appears to reveal the full answer.")
+    if _text_reveals_answer(image_text, answer):
+        errors.append("Image text appears to reveal answer fragments.")
+    if _text_reveals_answer(topic.get("title", ""), answer):
+        errors.append("Title appears to reveal answer fragments.")
+    if _text_reveals_answer(topic.get("prompt_line", ""), answer):
+        errors.append("Prompt line appears to reveal answer fragments.")
+    if str(topic.get("safe_hint_level", "none")).lower() not in {"none", "low", "medium"}:
+        errors.append("Unsupported safe_hint_level.")
+    try:
+        viral_score = int(topic.get("viral_score", 0))
+        if not 0 <= viral_score <= 100:
+            errors.append("viral_score must be between 0 and 100.")
+    except (TypeError, ValueError):
+        errors.append("viral_score must be an integer.")
 
     if len(str(topic.get("title", "")).strip()) > 90:
         errors.append("Title is too long for dashboard and caption preview.")

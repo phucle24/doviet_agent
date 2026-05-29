@@ -9,7 +9,7 @@ from app.config import (
     TARGET_FUTURE_POSTS,
     TIMEZONE,
 )
-from app.content_guard import answer_hash, content_fingerprint
+from app.content_guard import answer_hash, content_fingerprint, visual_fingerprint
 from app.db import (
     count_future_posts,
     count_posts,
@@ -20,6 +20,7 @@ from app.db import (
     mark_image_failed,
     mark_image_ready,
     normalize_identity,
+    recent_format_families,
 )
 from app.topic_bank import get_static_topic, series_for_global_index, static_topic_count_for_series
 
@@ -33,6 +34,17 @@ def remember_topic(topic: dict, used_identities: dict[str, set[str]]):
         used_identities["answers"].add(normalize_identity(topic["answer"]))
         used_identities["answers"].add(answer_hash(topic))
     used_identities["content_fingerprints"].add(content_fingerprint(topic))
+    used_identities["content_fingerprints"].add(visual_fingerprint(topic))
+    used_identities.setdefault("format_families", []).append(topic.get("format_family", ""))
+
+
+def topic_score(topic: dict, recent_formats: list[str]) -> int:
+    score = int(topic.get("viral_score") or 0)
+    if topic.get("format_family") in recent_formats:
+        score -= 35
+    if topic.get("difficulty") == "hard":
+        score += 4
+    return score
 
 
 def choose_unique_topic(global_index: int, used_identities: dict[str, set[str]]) -> dict:
@@ -41,7 +53,9 @@ def choose_unique_topic(global_index: int, used_identities: dict[str, set[str]])
     series_key, series_number = series_for_global_index(global_index)
     static_count = static_topic_count_for_series(series_key)
     start_index = (series_number - 1) % static_count
+    recent_formats = list(used_identities.get("format_families", [])[-3:])
 
+    candidates = []
     for offset in range(static_count):
         topic_index = (start_index + offset) % static_count
         topic = get_static_topic(series_key, topic_index, series_number)
@@ -53,7 +67,10 @@ def choose_unique_topic(global_index: int, used_identities: dict[str, set[str]])
             continue
         if content_fingerprint(topic) in used_identities["content_fingerprints"]:
             continue
-        return topic
+        candidates.append(topic)
+
+    if candidates:
+        return max(candidates, key=lambda topic: topic_score(topic, recent_formats))
 
     return generate_unique_riddle_topic(
         series_key=series_key,
@@ -102,6 +119,7 @@ def prepare_weekly_posts(days: int = 7) -> list[dict]:
     slots = generate_schedule(days=days)
     base_index = count_posts()
     used_identities = list_existing_topic_identities()
+    used_identities["format_families"] = recent_format_families()
     created = []
     offset = 0
 
@@ -133,6 +151,7 @@ def prepare_weekly_posts_for_batch(days: int = 7) -> list[dict]:
     slots = generate_schedule(days=days)
     base_index = count_posts()
     used_identities = list_existing_topic_identities()
+    used_identities["format_families"] = recent_format_families()
     created = []
     offset = 0
 
@@ -166,6 +185,7 @@ def prepare_future_posts_for_batch(posts_to_create: int, start_after_iso: str | 
 
     base_index = count_posts()
     used_identities = list_existing_topic_identities()
+    used_identities["format_families"] = recent_format_families()
     created = []
     offset = 0
 
@@ -262,6 +282,7 @@ def prepare_future_posts_direct(posts_to_create: int, cutoff_iso: str) -> list[d
 
     base_index = count_posts()
     used_identities = list_existing_topic_identities()
+    used_identities["format_families"] = recent_format_families()
     created = []
     offset = 0
 
@@ -371,6 +392,7 @@ def prepare_one_test_post(topic_index: int = 0) -> dict:
     tz = ZoneInfo(TIMEZONE)
     scheduled_at = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
     used_identities = list_existing_topic_identities()
+    used_identities["format_families"] = recent_format_families()
     topic = choose_unique_topic(topic_index, used_identities)
     post_id = build_post(topic, scheduled_at, "test", image_fallback_on_error=False)
     return {

@@ -225,7 +225,7 @@ def _generate_content(client, types, image_prompt: str):
 def generate_image(
     image_prompt: str,
     output_path: str,
-    retries: int = 2,
+    retries: int = 1,
     fallback_on_error: bool | None = None,
 ) -> str:
     _ensure_api_key()
@@ -236,12 +236,11 @@ def generate_image(
 
     last_error = "unknown error"
 
-    for _ in range(retries):
-        try:
-            response = _generate_content(client, types, image_prompt)
-            return save_image_from_response(response, output_path)
-        except Exception as exc:
-            last_error = repr(exc)
+    try:
+        response = _generate_content(client, types, image_prompt)
+        return save_image_from_response(response, output_path)
+    except Exception as exc:
+        last_error = repr(exc)
 
     should_fallback = IMAGE_FALLBACK_ON_ERROR if fallback_on_error is None else fallback_on_error
     if should_fallback:

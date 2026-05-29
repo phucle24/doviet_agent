@@ -2,7 +2,14 @@ import json
 from datetime import datetime, timedelta
 
 from app.config import FINAL_DIR
-from app.content_guard import answer_hash, assert_topic_quality, content_fingerprint, quality_status
+from app.content_guard import (
+    answer_hash,
+    assert_topic_quality,
+    caption_fingerprint,
+    content_fingerprint,
+    quality_status,
+    visual_fingerprint,
+)
 from app.db import insert_post
 from app.utils import slugify
 
@@ -37,6 +44,13 @@ BOTTOM_QUESTIONS = {
     "do_ca_dao": "ĐÂY LÀ CÂU CA DAO NÀO?",
     "duoi_hinh_bat_chu": "ĐOÁN CỤM TỪ LÀ GÌ?",
     "do_meo_dan_gian": "ĐÁP ÁN LÀ GÌ?",
+}
+
+CENTER_TEXT_BY_SERIES = {
+    "do_tuc_ngu": "ĐOÁN TỤC NGỮ",
+    "do_ca_dao": "ĐOÁN CA DAO",
+    "duoi_hinh_bat_chu": "NHÌN HÌNH\nĐOÁN CHỮ",
+    "do_meo_dan_gian": "CÂU ĐỐ MẸO",
 }
 
 SERIES_STYLE_NOTES = {
@@ -158,18 +172,15 @@ def template_index(topic: dict, total: int) -> int:
 
 
 def should_show_clue(topic: dict) -> bool:
-    if topic.get("show_clue") is False:
-        return False
-    difficulty = str(topic.get("difficulty", "")).strip().lower()
-    if difficulty in {"easy", "de"}:
-        return False
-    return True
+    return False
 
 
 def clue_line(topic: dict) -> str:
-    if should_show_clue(topic):
-        return f"Gợi ý nhỏ: {topic['clue']}"
-    return "Không gợi ý đâu nha, nhìn hình đoán mới vui 😄"
+    return "Nhìn hình rồi đoán thẳng nha 😄"
+
+
+def safe_center_image_text(topic: dict) -> str:
+    return CENTER_TEXT_BY_SERIES.get(topic.get("series_key"), "ĐOÁN ĐÁP ÁN")
 
 
 def append_caption_hashtags(caption: str) -> str:
@@ -227,7 +238,7 @@ def answer_comment_at(scheduled_at: str) -> str:
 
 def build_model_rendered_riddle_prompt(topic: dict) -> str:
     title = f"{topic['series_label']} #{topic['series_number']:03d}"
-    image_text = topic.get("image_text") or topic.get("clue", "")
+    image_text = safe_center_image_text(topic)
     visual_brief = topic.get("image_brief", "")
     format_label = topic.get("format", "Câu đố dân gian")
     bottom_question = BOTTOM_QUESTIONS.get(topic.get("series_key"), "ĐÁP ÁN LÀ GÌ?")
@@ -243,6 +254,8 @@ def build_model_rendered_riddle_prompt(topic: dict) -> str:
         "CORNER_BRAND_BADGE: Đố Việt - Kho Đố Dân Gian\n\n"
         "Strict answer rule:\n"
         "- The answer is stored separately for a Facebook comment; DO NOT reveal it in the image.\n"
+        "- Do not render any answer words, clue words, split-answer words, rebus labels, or syllables from the answer as text.\n"
+        "- Text on the poster must stay generic; the puzzle clue must come from the illustration only.\n"
         "- The image should only give visual clues and invite comments.\n\n"
         "Reference-inspired layout:\n"
         "- Top 14-18% of poster: large lacquer banner with TOP_BANNER_TITLE centered.\n"
@@ -304,6 +317,13 @@ def build_post_payload(topic: dict, scheduled_at: str, slot: str) -> dict:
         "quality_status": quality_status(topic),
         "quality_errors": None,
         "prompt_version": "doviet-riddle-v2-reference-poster",
+        "difficulty": topic.get("difficulty"),
+        "viral_score": topic.get("viral_score"),
+        "format_family": topic.get("format_family"),
+        "spoiler_risk": topic.get("spoiler_risk"),
+        "visual_fingerprint": visual_fingerprint(topic),
+        "caption_fingerprint": caption_fingerprint(caption),
+        "batch_retry_count": 0,
     }
 
 
