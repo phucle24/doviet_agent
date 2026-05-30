@@ -53,6 +53,15 @@ def _describe_response(response) -> str:
     return "; ".join(pieces) or "empty response details"
 
 
+def _iter_parts(value) -> list:
+    if not value:
+        return []
+    try:
+        return list(value)
+    except TypeError:
+        return []
+
+
 def _part_debug(part) -> dict:
     inline_data = getattr(part, "inline_data", None)
     text = getattr(part, "text", None)
@@ -82,10 +91,10 @@ def write_response_debug(response):
         "candidates": [],
     }
 
-    for part in getattr(response, "parts", None) or []:
+    for part in _iter_parts(getattr(response, "parts", None)):
         debug["top_level_parts"].append(_part_debug(part))
 
-    for candidate_index, candidate in enumerate(getattr(response, "candidates", None) or []):
+    for candidate_index, candidate in enumerate(_iter_parts(getattr(response, "candidates", None))):
         content = getattr(candidate, "content", None)
         candidate_debug = {
             "index": candidate_index,
@@ -93,7 +102,7 @@ def write_response_debug(response):
             "safety_ratings": repr(getattr(candidate, "safety_ratings", None)),
             "parts": [],
         }
-        for part in getattr(content, "parts", None) or []:
+        for part in _iter_parts(getattr(content, "parts", None)):
             candidate_debug["parts"].append(_part_debug(part))
         debug["candidates"].append(candidate_debug)
 
@@ -146,27 +155,22 @@ def save_image_from_response(response, output_path: str) -> str:
     output_file = Path(output_path)
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
-    parts = getattr(response, "parts", None)
-    if parts:
-        for part in parts:
+    for part in _iter_parts(getattr(response, "parts", None)):
+        saved = save_part_image(part, output_path)
+        if saved:
+            return saved
+
+    for candidate in _iter_parts(getattr(response, "candidates", None)):
+        content = getattr(candidate, "content", None)
+        if not content:
+            continue
+        for part in _iter_parts(getattr(content, "parts", None)):
             saved = save_part_image(part, output_path)
             if saved:
                 return saved
 
-    candidates = getattr(response, "candidates", None)
-    if candidates:
-        for candidate in candidates:
-            content = getattr(candidate, "content", None)
-            if not content:
-                continue
-            c_parts = getattr(content, "parts", [])
-            for part in c_parts:
-                saved = save_part_image(part, output_path)
-                if saved:
-                    return saved
-
     debug_path = write_response_debug(response)
-    raise RuntimeError(f"Model did not return an image part: {_describe_response(response)}")
+    raise RuntimeError(f"Model did not return an image part: {_describe_response(response)}. Debug: {debug_path}")
 
 
 def save_part_image(part, output_path: str) -> str | None:

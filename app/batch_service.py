@@ -165,21 +165,15 @@ def process_batch_job(batch_job_name: str) -> dict:
     failed = 0
     retried = 0
 
-    if len(responses) != len(posts):
+    if len(responses) < len(posts):
+        missing_posts = posts[len(responses):]
         message = f"Batch response count mismatch: posts={len(posts)} responses={len(responses)}"
-        for post in posts:
+        for post in missing_posts:
             outcome = defer_or_fail_image(post, message)
             if outcome == "retry":
                 retried += 1
             else:
                 failed += 1
-        return {
-            "batch_job_name": batch_job_name,
-            "state": state,
-            "ready": ready,
-            "failed": failed,
-            "retried": retried,
-        }
 
     for post, inline_response in zip(posts, responses):
         error = _inline_response_error(inline_response)
@@ -218,7 +212,10 @@ def process_batch_job(batch_job_name: str) -> dict:
             else:
                 failed += 1
 
-    update_batch_state(batch_job_name, state, None)
+    batch_note = None
+    if len(responses) > len(posts):
+        batch_note = f"Batch returned {len(responses) - len(posts)} extra response(s); ignored extras."
+    update_batch_state(batch_job_name, state, batch_note)
     return {
         "batch_job_name": batch_job_name,
         "state": state,
