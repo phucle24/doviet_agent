@@ -337,6 +337,12 @@ def ensure_future_posts_for_batch(
     pending_batch_submission = count_posts_for_batch_submission()
 
     if current_ready > min_future_posts:
+        if pending_batch_submission:
+            from app.batch_service import submit_pending_image_batch
+
+            batch = submit_pending_image_batch(limit=min(pending_batch_submission, target_future_posts))
+        else:
+            batch = {"submitted": 0, "batch_job_name": None, "batch_state": None}
         return {
             "current_future": current_future,
             "current_ready": current_ready,
@@ -345,7 +351,7 @@ def ensure_future_posts_for_batch(
             "direct_existing": direct_existing,
             "direct_cutoff": direct_cutoff_iso,
             "direct_enabled": direct_enabled,
-            "batch": {"submitted": 0, "batch_job_name": None, "batch_state": None},
+            "batch": batch,
         }
 
     posts_to_create = max(target_future_posts - current_future, 0)

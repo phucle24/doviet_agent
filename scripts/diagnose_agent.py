@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import DB_PATH, TIMEZONE
-from app.db import batch_publish_overview, get_all_due_posts, get_conn, init_db
+from app.db import batch_publish_overview, get_all_due_posts, get_conn, get_due_answer_comments, init_db
 
 
 def print_rows(title: str, rows):
@@ -74,16 +74,18 @@ if __name__ == "__main__":
         """
         SELECT *
         FROM posts
-        WHERE status IN ('FAILED', 'IMAGE_FAILED')
+        WHERE status IN ('FAILED', 'IMAGE_FAILED', 'PUBLISHING')
+           OR answer_comment_status = 'POSTING'
         ORDER BY updated_at DESC, id DESC
         LIMIT 10
         """
     )
-    failed_rows = cur.fetchall()
+    attention_rows = cur.fetchall()
 
     conn.close()
 
     due_rows = get_all_due_posts(now_iso)
+    due_answer_rows = get_due_answer_comments(now_iso)
     overview = batch_publish_overview(now_iso)
 
     print(f"DB: {DB_PATH}")
@@ -91,6 +93,7 @@ if __name__ == "__main__":
     print(f"Status counts: {dict(Counter(status_counts))}")
     print(f"Batch/publish overview: {overview}")
     print_rows("Due READY posts", due_rows)
+    print_rows("Due answer comments", due_answer_rows)
     print_rows("Today posts", today_rows)
     print_rows("Tomorrow posts", tomorrow_rows)
 
@@ -101,4 +104,4 @@ if __name__ == "__main__":
             f"posts={row['total']}"
         )
 
-    print_rows("Recent failed posts", failed_rows)
+    print_rows("Recent attention posts", attention_rows)

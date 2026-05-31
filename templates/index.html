@@ -81,6 +81,7 @@
     <div class="filters" aria-label="Bộ lọc trạng thái">
       <a class="filter-pill {% if not active_status %}active{% endif %}" href="{{ url_for('index') }}">Tất cả</a>
       <a class="filter-pill {% if active_status == 'READY' %}active{% endif %}" href="{{ url_for('index', status='READY') }}">READY</a>
+      <a class="filter-pill {% if active_status == 'PUBLISHING' %}active{% endif %}" href="{{ url_for('index', status='PUBLISHING') }}">PUBLISHING</a>
       <a class="filter-pill {% if active_status == 'POSTED' %}active{% endif %}" href="{{ url_for('index', status='POSTED') }}">POSTED</a>
       <a class="filter-pill {% if active_status == 'WAITING_IMAGE' %}active{% endif %}" href="{{ url_for('index', status='WAITING_IMAGE') }}">WAITING_IMAGE</a>
       <a class="filter-pill {% if active_status == 'FAILED' %}active{% endif %}" href="{{ url_for('index', status='FAILED') }}">FAILED</a>

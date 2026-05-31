@@ -1,0 +1,10 @@
+[Unit]
+Description=Publish Do Viet evening posts daily
+
+[Timer]
+OnCalendar=*-*-* 20:15:00
+Persistent=true
+Unit=doviet-agent-publish-evening.service
+
+[Install]
+WantedBy=timers.target

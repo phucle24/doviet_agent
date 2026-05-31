@@ -441,6 +441,25 @@ def mark_posted(post_id: int, fb_post_id: str):
     conn.close()
 
 
+def claim_post_for_publish(post_id: int) -> bool:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE posts
+        SET status = 'PUBLISHING',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+          AND status = 'READY'
+        """,
+        (post_id,),
+    )
+    claimed = cur.rowcount == 1
+    conn.commit()
+    conn.close()
+    return claimed
+
+
 def schedule_answer_comment(post_id: int, answer_comment_at: str):
     conn = get_conn()
     cur = conn.cursor()
@@ -459,6 +478,26 @@ def schedule_answer_comment(post_id: int, answer_comment_at: str):
     )
     conn.commit()
     conn.close()
+
+
+def claim_answer_comment_for_publish(post_id: int) -> bool:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE posts
+        SET answer_comment_status = 'POSTING',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+          AND status = 'POSTED'
+          AND COALESCE(answer_comment_status, 'PENDING') IN ('PENDING', 'FAILED')
+        """,
+        (post_id,),
+    )
+    claimed = cur.rowcount == 1
+    conn.commit()
+    conn.close()
+    return claimed
 
 
 def get_due_answer_comments(now_iso: str):

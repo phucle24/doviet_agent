@@ -318,6 +318,11 @@ p {
   color: var(--ready);
 }
 
+.status-publishing {
+  background: #fff7ed;
+  color: var(--warn);
+}
+
 .status-posted {
   background: #ecfdf3;
   color: var(--posted);

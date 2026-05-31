@@ -9,6 +9,7 @@ from app.batch_service import poll_all_image_batches, submit_pending_image_batch
 from app.config import BASE_DIR, TIMEZONE, WEB_HOST, WEB_PORT, WEB_SECRET_KEY
 from app.db import (
     batch_publish_overview,
+    claim_post_for_publish,
     dashboard_stats,
     get_post,
     init_db,
@@ -101,7 +102,7 @@ def create_app() -> Flask:
                     flash(
                         "No batch jobs to poll. "
                         f"{overview['waiting_unsubmitted']} WAITING_IMAGE posts have not been submitted yet; "
-                        "click Submit pending Batch.",
+                        "run ensure_future_posts_batch.py or create a new batch from the dashboard.",
                         "error",
                     )
                 elif overview["due_ready"]:
@@ -167,6 +168,9 @@ def create_app() -> Flask:
             abort(404)
 
         try:
+            if not claim_post_for_publish(post_id):
+                flash(f"Post #{post_id} is no longer READY or is already being published.", "error")
+                return redirect(url_for("post_detail", post_id=post_id))
             result = publish_photo(post["final_image_path"], post["caption"])
             fb_post_id = result.get("post_id") or result.get("id", "")
             mark_posted(post_id, fb_post_id)

@@ -6,7 +6,14 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import TIMEZONE
-from app.db import get_all_due_posts, get_due_posts, mark_failed, mark_posted, schedule_answer_comment
+from app.db import (
+    claim_post_for_publish,
+    get_all_due_posts,
+    get_due_posts,
+    mark_failed,
+    mark_posted,
+    schedule_answer_comment,
+)
 from app.facebook_service import publish_photo
 
 
@@ -39,6 +46,10 @@ if __name__ == "__main__":
                 f"local_id={post['id']} | scheduled_at={post['scheduled_at']} | "
                 f"slot={post['slot']} | image={post['final_image_path']}"
             )
+            continue
+
+        if not claim_post_for_publish(post["id"]):
+            print(f"Skipped local_id={post['id']} because it was already claimed or no longer READY.")
             continue
 
         try:

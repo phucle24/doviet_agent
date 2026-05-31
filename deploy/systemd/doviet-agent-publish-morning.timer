@@ -2,9 +2,9 @@
 Description=Publish Do Viet morning posts daily
 
 [Timer]
-OnCalendar=*-*-* 10:00:00
+OnCalendar=*-*-* 11:45:00
 Persistent=true
-Unit=fb-animal-agent-publish-morning.service
+Unit=doviet-agent-publish-morning.service
 
 [Install]
 WantedBy=timers.target

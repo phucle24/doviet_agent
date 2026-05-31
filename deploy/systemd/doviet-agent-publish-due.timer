@@ -4,7 +4,7 @@ Description=Publish due Do Viet posts every 15 minutes
 [Timer]
 OnCalendar=*:0/15
 Persistent=true
-Unit=fb-animal-agent-publish-due.service
+Unit=doviet-agent-publish-due.service
 
 [Install]
 WantedBy=timers.target

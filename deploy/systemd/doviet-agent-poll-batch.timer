@@ -4,7 +4,7 @@ Description=Poll Do Viet Gemini Batch image jobs every 6 hours
 [Timer]
 OnCalendar=*-*-* 00/6:15:00
 Persistent=true
-Unit=fb-animal-agent-poll-batch.service
+Unit=doviet-agent-poll-batch.service
 
 [Install]
 WantedBy=timers.target

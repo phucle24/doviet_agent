@@ -1,0 +1,10 @@
+[Unit]
+Description=Ensure future Do Viet posts with Gemini Batch API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/doviet_agent
+EnvironmentFile=/root/doviet_agent/.env
+ExecStart=/root/doviet_agent/venv/bin/python scripts/ensure_future_posts_batch.py

@@ -10,12 +10,13 @@ install -m 0644 deploy/systemd/*.service /etc/systemd/system/
 install -m 0644 deploy/systemd/*.timer /etc/systemd/system/
 
 systemctl daemon-reload
-systemctl enable --now fb-animal-agent-web.service
-systemctl enable --now fb-animal-agent-ensure.timer
-systemctl enable --now fb-animal-agent-poll-batch.timer
-systemctl enable --now fb-animal-agent-publish-due.timer
-systemctl enable --now fb-animal-agent-publish-answers.timer
-systemctl enable --now fb-animal-agent-publish-morning.timer
-systemctl enable --now fb-animal-agent-publish-afternoon.timer
+systemctl disable --now 'fb-animal-agent-*' 2>/dev/null || true
+systemctl disable --now doviet-agent-publish-morning.timer 2>/dev/null || true
+systemctl disable --now doviet-agent-publish-evening.timer 2>/dev/null || true
+systemctl enable --now doviet-agent-web.service
+systemctl enable --now doviet-agent-ensure.timer
+systemctl enable --now doviet-agent-poll-batch.timer
+systemctl enable --now doviet-agent-publish-due.timer
+systemctl enable --now doviet-agent-publish-answers.timer
 
-systemctl list-timers 'fb-animal-agent-*'
+systemctl list-timers 'doviet-agent-*'

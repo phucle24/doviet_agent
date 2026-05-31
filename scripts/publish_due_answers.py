@@ -6,7 +6,12 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import TIMEZONE
-from app.db import get_due_answer_comments, mark_answer_comment_failed, mark_answer_commented
+from app.db import (
+    claim_answer_comment_for_publish,
+    get_due_answer_comments,
+    mark_answer_comment_failed,
+    mark_answer_commented,
+)
 from app.facebook_service import publish_comment
 
 
@@ -29,6 +34,10 @@ if __name__ == "__main__":
                 f"local_id={post['id']} | fb_post_id={post['fb_post_id']} | "
                 f"answer_comment_at={post['answer_comment_at']}"
             )
+            continue
+
+        if not claim_answer_comment_for_publish(post["id"]):
+            print(f"Skipped answer local_id={post['id']} because it was already claimed or no longer pending.")
             continue
 
         try:

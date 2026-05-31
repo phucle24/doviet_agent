@@ -126,7 +126,7 @@ python scripts/publish_due_posts.py all
 
 ```bash
 python scripts/publish_due_posts.py morning
-python scripts/publish_due_posts.py afternoon
+python scripts/publish_due_posts.py evening
 ```
 
 Comment đáp án cho các bài đã đăng và đã qua mốc 2 giờ:
@@ -145,10 +145,10 @@ python scripts/publish_due_answers.py --dry-run
 Cron gợi ý:
 
 ```cron
-0 2 * * * cd /root/fb_animal_agent && /root/fb_animal_agent/venv/bin/python scripts/ensure_future_posts_batch.py >> logs/agent.log 2>&1
-15 */6 * * * cd /root/fb_animal_agent && /root/fb_animal_agent/venv/bin/python scripts/poll_batch_images.py >> logs/agent.log 2>&1
-*/15 * * * * cd /root/fb_animal_agent && /root/fb_animal_agent/venv/bin/python scripts/publish_due_posts.py all >> logs/agent.log 2>&1
-*/15 * * * * cd /root/fb_animal_agent && /root/fb_animal_agent/venv/bin/python scripts/publish_due_answers.py >> logs/agent.log 2>&1
+0 2 * * * cd /root/doviet_agent && /root/doviet_agent/venv/bin/python scripts/ensure_future_posts_batch.py >> logs/agent.log 2>&1
+15 */6 * * * cd /root/doviet_agent && /root/doviet_agent/venv/bin/python scripts/poll_batch_images.py >> logs/agent.log 2>&1
+*/15 * * * * cd /root/doviet_agent && /root/doviet_agent/venv/bin/python scripts/publish_due_posts.py all >> logs/agent.log 2>&1
+*/15 * * * * cd /root/doviet_agent && /root/doviet_agent/venv/bin/python scripts/publish_due_answers.py >> logs/agent.log 2>&1
 ```
 
 ## Deploy systemd
@@ -159,11 +159,11 @@ sudo bash deploy/install_systemd.sh
 
 Timer chính:
 
-- `fb-animal-agent-ensure.timer`: tự bù bài tương lai bằng Batch API.
-- `fb-animal-agent-poll-batch.timer`: poll ảnh batch.
-- `fb-animal-agent-publish-due.timer`: đăng bài đến giờ.
-- `fb-animal-agent-publish-answers.timer`: comment đáp án đến giờ.
-- `fb-animal-agent-web.service`: dashboard local.
+- `doviet-agent-ensure.timer`: tự bù bài tương lai bằng Batch API.
+- `doviet-agent-poll-batch.timer`: poll ảnh batch.
+- `doviet-agent-publish-due.timer`: đăng bài đến giờ.
+- `doviet-agent-publish-answers.timer`: comment đáp án đến giờ.
+- `doviet-agent-web.service`: dashboard local.
 
 ## Preview bài
 
