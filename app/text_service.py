@@ -1,20 +1,8 @@
-from app.config import GEMINI_API_KEY, GEMINI_TEXT_MODEL
 from app.content_guard import answer_hash, content_fingerprint, validate_topic
 from app.db import normalize_identity
+from app.deepseek_service import generate_json
 from app.topic_bank import SERIES_META, annotate_topic
-from app.utils import safe_json_loads, slugify
-
-
-def _ensure_api_key():
-    if not GEMINI_API_KEY:
-        raise RuntimeError("Missing DOVIET_AGENT_GEMINI_API_KEY")
-
-
-def _client_and_types():
-    from google import genai
-    from google.genai import types
-
-    return genai.Client(api_key=GEMINI_API_KEY), types
+from app.utils import slugify
 
 
 def _used_answers_text(used_answers: set[str], limit: int = 80) -> str:
@@ -35,13 +23,11 @@ def generate_unique_riddle_topic(
     used_answers: set[str],
     used_content_fingerprints: set[str] | None = None,
 ) -> dict:
-    _ensure_api_key()
-    client, types = _client_and_types()
     meta = SERIES_META[series_key]
     used_content_fingerprints = used_content_fingerprints or set()
 
-    prompt = f"""
-Bạn là biên tập viên cho fanpage "Đố Việt - Kho Đố Dân Gian".
+    system_prompt = 'Bạn là biên tập viên cho fanpage "Đố Việt - Kho Đố Dân Gian". Chỉ trả về JSON hợp lệ.'
+    user_prompt = f"""
 
 Hãy tạo MỘT nội dung mới cho series: {meta["label"]}.
 Không được trùng đáp án, ý tưởng chính, câu hỏi, hình ảnh gợi ý với danh sách đã dùng.
@@ -83,12 +69,11 @@ Chỉ trả về JSON, không giải thích thêm.
 """
 
     for attempt in range(3):
-        response = client.models.generate_content(
-            model=GEMINI_TEXT_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(response_mime_type="application/json"),
+        attempt_prompt = (
+            f"{user_prompt}\n\n"
+            f"Lần thử #{attempt + 1}: nếu ý tưởng trước đó bị trùng hoặc không đạt, hãy chọn đáp án và hình ảnh khác hẳn."
         )
-        topic = safe_json_loads(response.text)
+        topic = generate_json(system_prompt, attempt_prompt, temperature=0.85)
         answer = topic.get("answer", "").strip()
         if not answer:
             continue

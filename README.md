@@ -14,8 +14,9 @@ Pipeline hiện có:
 - tạo caption theo format series, ví dụ `[ĐỐ TỤC NGỮ #001]`
 - caption dùng giọng vui tươi, hóm hỉnh, kêu gọi comment và theo dõi page để quay lại xem đáp án sau 2 giờ
 - hashtag mặc định: `#dotucngu #DoViet #khodogiandan #dovui #duoihinhbatchu`
-- tạo prompt ảnh 4:5 để Gemini render ảnh final có chữ
-- style ảnh dùng prompt poster dân gian/game-show: thanh tiêu đề trên, cảnh gợi ý ở giữa, câu hỏi dưới, brand badge ở góc
+- tạo topic/text mới bằng DeepSeek khi kho seed đã dùng hết
+- tạo prompt ảnh 4:5 để Gemini render ảnh final
+- style ảnh dùng manh mối thị giác, không chữ trên ảnh ngoài badge nhỏ `Đố Việt`
 - lưu lịch bài vào SQLite
 - tạo ảnh qua Gemini Batch API
 - đăng ảnh lên Facebook Page
@@ -25,7 +26,7 @@ Pipeline hiện có:
 - kiểm tra DB để không tạo trùng `topic_key` hoặc đáp án đã từng lên lịch
 - lưu `content_fingerprint` và `answer_hash` để chặn trùng ở tầng database
 - chạy quality gate nội bộ trước khi lưu bài mới
-- nếu kho seed đã dùng hết, Gemini text sẽ sinh câu đố/prompt mới không trùng đáp án cũ
+- nếu kho seed đã dùng hết, DeepSeek sẽ sinh câu đố/prompt mới không trùng đáp án cũ
 - dashboard Flask để preview, tạo lịch batch, poll batch, đăng thủ công
 
 ## Setup
@@ -41,9 +42,12 @@ cp .env.example .env
 
 ```env
 DOVIET_AGENT_GEMINI_API_KEY=...
-DOVIET_AGENT_GEMINI_TEXT_MODEL=gemini-2.5-flash
 DOVIET_AGENT_GEMINI_IMAGE_MODEL=gemini-2.5-flash-image
 DOVIET_AGENT_IMAGE_ASPECT_RATIO=4:5
+
+DOVIET_AGENT_DEEPSEEK_API_KEY=...
+DOVIET_AGENT_DEEPSEEK_BASE_URL=https://api.deepseek.com
+DOVIET_AGENT_DEEPSEEK_TEXT_MODEL=deepseek-chat
 
 DOVIET_AGENT_FB_PAGE_ID=...
 DOVIET_AGENT_FB_PAGE_TOKEN=...
@@ -108,7 +112,7 @@ Script ensure sẽ tự kiểm tra DB:
 - bài mới phải qua quality gate: đủ field, đáp án hợp lệ, chữ trên ảnh không lộ nguyên đáp án
 - DB có unique index trên `content_fingerprint`, nên nội dung trùng sẽ bị chặn khi insert
 - nếu còn bài `WAITING_IMAGE` chưa gửi Gemini Batch, script sẽ submit batch ảnh
-- nếu seed có sẵn đã dùng hết, Gemini text sẽ sinh câu đố mới cùng series
+- nếu seed có sẵn đã dùng hết, DeepSeek sẽ sinh câu đố mới cùng series
 
 ```bash
 python scripts/ensure_future_posts_batch.py

@@ -27,8 +27,10 @@ for path in [DB_PATH.parent, OUTPUT_DIR, RAW_DIR, FINAL_DIR, LOG_DIR]:
     path.mkdir(parents=True, exist_ok=True)
 
 GEMINI_API_KEY = env_value("GEMINI_API_KEY", "").strip()
-GEMINI_TEXT_MODEL = env_value("GEMINI_TEXT_MODEL", "gemini-2.5-flash").strip()
 GEMINI_IMAGE_MODEL = env_value("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image").strip()
+DEEPSEEK_API_KEY = env_value("DEEPSEEK_API_KEY", "").strip()
+DEEPSEEK_BASE_URL = env_value("DEEPSEEK_BASE_URL", "https://api.deepseek.com").rstrip("/")
+DEEPSEEK_TEXT_MODEL = env_value("DEEPSEEK_TEXT_MODEL", "deepseek-chat").strip()
 IMAGE_FALLBACK_ON_ERROR = env_value("IMAGE_FALLBACK_ON_ERROR", "false").lower() in {
     "1",
     "true",
